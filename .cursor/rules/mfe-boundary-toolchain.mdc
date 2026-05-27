@@ -1,0 +1,279 @@
+---
+description: MFE boundary review: MFE boundary rules — toolchain patterns. Load when this topic is in scope; part of mfe-skills.
+alwaysApply: false
+---
+
+# MFE boundary rules — toolchain patterns
+
+**Version**: 1.3 | **Skill**: reviewing-mfe-boundaries | **Source**: *Building Micro-Frontends* (O'Reilly)
+
+Toolchain-specific code patterns for each boundary rule. Load this file when the user is working with a specific framework or when a rule violation needs framework-specific guidance. For principle definitions and violation signals, see `rules-core.md`.
+
+## URL routing — shell first segment, MFE below (Rule 7)
+
+Principle: shell loads first segment from a dynamic manifest; MFE hardcodes deeper paths. Navigation API is flexible. Shell handles `shell:*` platform events only. See `routing-ownership.md`.
+
+```tsx
+// React Router — shell
+<Route path="/catalog/*" element={<RemoteMount scope="catalog_mfe" />} />
+
+// React Router — catalog remote (basename matches shell prefix)
+<BrowserRouter basename="/catalog">
+  <Routes>
+    <Route path="/" element={<ProductList />} />
+    <Route path="/product/:productId" element={<ProductDetail />} />
+  </Routes>
+</BrowserRouter>
+```
+
+```typescript
+// Angular — shell first segment
+{ path: 'catalog', loadChildren: () => loadRemoteModule('catalog', './routes') }
+// catalog/routes.ts (catalog team): { path: 'product/:id', component: ProductDetailComponent }
+```
+
+```javascript
+// Single SPA — shell first segment via activeWhen prefix
+registerApplication({
+  name: 'catalog',
+  app: () => import('catalog/main'),
+  activeWhen: (location) => location.pathname.startsWith('/catalog'),
+})
+// catalog/main mounts its own router for /catalog/product/:id
+```
+
+---
+
+## Rule 2 — Exposes a minimal API surface to its container
+
+**Toolchain patterns — same rule, different surfaces:**
+```typescript
+// Native Federation (Angular) — shell passes props via loadRemoteModule input binding
+// ✓ Minimal context — route param only; remote fetches its own data
+// app.routes.ts (shell)
+{
+  path: 'checkout/:cartId',
+  loadComponent: () =>
+    loadRemoteModule('checkout', './CheckoutComponent')
+      .then(m => m.CheckoutComponent)
+  // cartId passed via route param — remote reads ActivatedRoute itself
+}
+
+// ✗ Shell resolving full domain objects before loading the remote
+{
+  path: 'checkout',
+  resolve: { cart: CartResolver, user: UserResolver, shipping: ShippingResolver },
+  loadComponent: () =>
+    loadRemoteModule('checkout', './CheckoutComponent')
+      .then(m => m.CheckoutComponent)
+  // resolved data injected via route — container now owns context
+}
+```
+
+```javascript
+// Module Federation v2 — props passed via runtime bridge or input binding
+// ✓ Minimal: remote receives only IDs via shared routing context
+import { init, loadRemote } from '@module-federation/runtime'
+
+await init({
+  name: 'shell',
+  remotes: [{ name: 'checkout', entry: window.__remotes__.checkout }],
+})
+const { CheckoutApp } = await loadRemote('checkout/CheckoutApp')
+// cartId and userId passed via URL params — remote reads them independently
+
+// ✗ Shell passing full resolved objects into the remote via bridge
+bridge.provide('checkoutContext', { user, cart, shippingOptions, paymentMethods })
+// remote now depends on the shell's data shape
+```
+
+```javascript
+// Single SPA — props passed via the application's customProps
+// ✓ Minimal context
+registerApplication({
+  name: 'checkout',
+  app: () => import('checkout/main'),
+  activeWhen: '/checkout',
+  customProps: { userId, cartId }  // identifiers only
+})
+
+// ✗ Full domain objects in customProps
+registerApplication({
+  name: 'checkout',
+  app: () => import('checkout/main'),
+  activeWhen: '/checkout',
+  customProps: { user, cart, shippingOptions, paymentMethods, theme }
+  // 5+ props including domain objects — violation
+})
+```
+
+---
+
+
+## Rule 3 — Hides implementation details behind an API contract
+
+**Toolchain patterns — same rule, different surfaces:**
+```typescript
+// Native Federation (Angular) — cross-boundary import via exposed Angular service
+// ✗ CRITICAL — importing another MFE's exposed service directly
+import { AuthService } from 'auth/AuthService'  // resolves to auth remote at runtime
+
+@Component({ ... })
+export class CheckoutComponent {
+  constructor(private auth: AuthService) {}  // runtime coupling to auth MFE internals
+}
+
+// ✓ Auth token read from shared storage — no import of another MFE's service
+@Component({ ... })
+export class CheckoutComponent implements OnInit {
+  private authToken = inject(AUTH_TOKEN)  // token provided by shell via InjectionToken
+  // or: read directly from sessionStorage / cookie
+}
+```
+
+```javascript
+// Module Federation v2 — cross-boundary import via @module-federation/runtime
+// ✗ Eagerly loading another MFE's internal module
+import { userStore } from '@org/auth-mfe/store'
+// Even in MF v2 this creates a runtime dependency on auth-mfe's deployment
+
+// ✗ Using loadRemote to import another MFE's internals
+import { loadRemote } from '@module-federation/runtime'
+const { UserStore } = await loadRemote('auth/store')  // still a boundary violation
+// loadRemote is for your own remotes or a shell loading its children — not peer-to-peer
+
+// ✓ Checkout MFE exposes only what it owns; reads auth via contract (cookie/storage)
+const token = document.cookie.match(/auth_token=([^;]+)/)?.[1]
+```
+
+```javascript
+// Single SPA — cross-boundary import via in-browser module / import map
+// ✗ Direct import from another registered application's exposed module
+import { userProfile } from 'auth-spa/userProfile'
+// Couples checkout-spa's build to auth-spa's exposed API
+
+// ✓ Communication via shared event bus registered at the root level
+import { getEventBus } from '@org/shell-utils'
+const bus = getEventBus()
+bus.on('auth:tokenRefreshed', ({ token }) => { /* use token */ })
+```
+
+---
+
+
+## Rule 5 — Deploys independently without coordination
+
+**Toolchain patterns — same rule, different surfaces:**
+```javascript
+// Module Federation v2 — versioned manifest URL pins shell to remote version
+// ✗ Hard-coded manifest URL with version
+import { init } from '@module-federation/runtime'
+await init({
+  name: 'shell',
+  remotes: [{
+    name: 'checkout',
+    entry: 'https://cdn.example.com/checkout/v2.3.1/mf-manifest.json',
+    //                                        ^^^^^^ pinned — shell must rebuild on every checkout deploy
+  }]
+})
+
+// ✓ Manifest URL from runtime config — checkout deploys independently
+await init({
+  name: 'shell',
+  remotes: [{
+    name: 'checkout',
+    entry: window.__remotes__.checkout,  // loaded from config API at shell startup
+  }]
+})
+```
+
+```typescript
+// Native Federation (Angular) — hard-coded version in federation.manifest.json
+// ✗ Versioned remote URL in the manifest file committed to the shell repo
+// federation.manifest.json
+{
+  "checkout": "https://cdn.example.com/checkout/v1.8.0/remoteEntry.json",
+  "catalog":  "https://cdn.example.com/catalog/v2.1.3/remoteEntry.json"
+}
+// Every checkout deployment requires updating this file and redeploying the shell
+
+// ✓ Manifest loaded at runtime from an endpoint the shell does not own
+// app.config.ts (shell)
+fetch('/api/remotes')
+  .then(r => r.json())
+  .then(manifest => setManifest(manifest))  // shell reads URLs dynamically at startup
+```
+
+```javascript
+// Single SPA — import map with pinned versions
+// ✗ Versioned URLs in importmap.json committed to the shell repository
+// importmap.json
+{
+  "imports": {
+    "checkout": "https://cdn.example.com/checkout/v3.2.1/checkout.js",
+    "catalog":  "https://cdn.example.com/catalog/v1.4.0/catalog.js"
+  }
+}
+// Updating checkout requires a shell PR to bump the import map — deployment coupling
+
+// ✓ Import map served dynamically — teams update their own entry independently
+// importmap.json served from a managed endpoint, not committed to shell repo
+// Each team has write access to their own entry; no shell PR required
+```
+
+---
+
+
+## Rule 7 — Is coarse-grained enough to prevent context leakage
+
+**Toolchain patterns — same rule, different surfaces:**
+```typescript
+// Native Federation (Angular) — nesting depth violation
+// ✗ A remote Angular component loading another remote inside itself
+// catalog.component.ts (catalog remote)
+@Component({
+  template: `
+    <div *ngFor="let product of products">
+      <!-- Depth 2 violation: catalog remote loading product-card remote -->
+      <ng-container *ngComponentOutlet="ProductCardComponent" />
+    </div>
+  `
+})
+export class CatalogComponent implements OnInit {
+  ProductCardComponent: Type<unknown>
+
+  async ngOnInit() {
+    // catalog remote loading product-card remote — depth 2
+    const m = await loadRemoteModule('product-card', './ProductCardComponent')
+    this.ProductCardComponent = m.ProductCardComponent
+  }
+}
+
+// ✓ Catalog owns ProductCard as an internal component — depth 1
+// product-card.component.ts lives inside the catalog remote's own src/
+@Component({ selector: 'app-product-card', template: `...` })
+export class ProductCardComponent {}  // internal component, not a remote
+```
+
+```javascript
+// Single SPA — nesting violation via nested registerApplication calls
+// ✗ A registered application registering its own child applications
+// Inside catalog-spa's bootstrap:
+export async function bootstrap() {
+  // Catalog SPA registering product-card as its own child application — depth 2
+  registerApplication({
+    name: 'product-card',
+    app: () => import('product-card-spa/main'),
+    activeWhen: () => true,
+  })
+}
+
+// ✓ Only the root-level shell registers applications
+// root-config.js (shell only)
+registerApplication({ name: 'catalog', app: () => import('catalog/main'), activeWhen: '/catalog' })
+registerApplication({ name: 'checkout', app: () => import('checkout/main'), activeWhen: '/checkout' })
+// Product card is a component inside catalog-spa, not a registered application
+```
+
+---
+

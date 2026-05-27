@@ -1,0 +1,497 @@
+# MFE boundary rules
+
+**Version**: 1.3 | **Skill**: reviewing-mfe-boundaries | **Source**: *Building Micro-Frontends* (O'Reilly). Canvas facilitation: separate micro-frontend-canvas skill.
+
+Principle-level definitions, violation signals, and canonical code patterns for all eight boundary rules. Tool-agnostic — applies regardless of composition mechanism, framework, or toolchain.
+
+For framework-specific code patterns (Module Federation v2, Angular/Native Federation, Single SPA): load `references/rules-toolchain.md`.
+
+Each rule entry contains: the canonical definition, violation signals, and code-checkable patterns.
+
+---
+
+## Rule 1 — Represents a business subdomain, not a component
+
+A micro-frontend is the technical representation of a business subdomain. It is not a reusable UI component.
+
+**The distinction**: a component addresses a technical challenge through abstraction and reusability, and its API is frequently coupled with its container. A micro-frontend completely owns a business domain; it is context-aware, not designed for reuse across domains.
+
+**How to identify a domain**: base boundaries on user journey steps (checkout, search, profile, authentication) or clear business capabilities — not on technical frameworks, component types, or UI layout regions.
+
+**The rule of thumb**: if you can reuse it everywhere, it is probably a component. If it represents a domain and can live on its own, it is a micro-frontend.
+
+**Violation signals**:
+- A micro-frontend named after a UI element (header, sidebar, card) rather than a business capability
+- A micro-frontend that is reused across multiple unrelated domains
+- Boundaries drawn along technical layers (data layer, presentation layer) rather than domain lines
+
+**Code-checkable patterns**:
+```jsx
+// ✗ Named after a UI element — not a domain
+<HeaderMicrofrontend />
+<SidebarMicrofrontend />
+<CardMicrofrontend />
+
+// ✓ Named after a business capability
+<CheckoutMicrofrontend />
+<CatalogMicrofrontend />
+<AuthenticationMicrofrontend />
+```
+
+If a micro-frontend is imported and used in many unrelated domains, it is likely a component that should move to a shared design system package — not a runtime-integrated micro-frontend.
+
+---
+
+
+---
+
+## Rule 2 — Exposes a minimal API surface to its container
+
+Streamline the API surface to the essential minimum required for the micro-frontend to understand the user's context. Typically this means little more than a session token and a context identifier such as a product ID.
+
+**The Canvas threshold**: fewer than 5 props exposed to the container.
+
+**Why this matters**: when you expose too many properties, the container starts owning the context instead of the micro-frontend. The micro-frontend becomes a dumb rendering layer, and the container accumulates domain knowledge it should not have. This produces accidental complexity and forces constant coordination across teams.
+
+**Violation signals**:
+- More than 5 props passed from container to micro-frontend
+- Props that represent entire domain objects (a full User, a full Order, a full Cart)
+- The container fetching data on behalf of the micro-frontend and passing it in
+- Teams coordinating constantly because a prop change in one triggers changes in the other
+
+**Code-checkable patterns**:
+```jsx
+// ✓ Minimal context — identifier + session access
+<CheckoutMicrofrontend userId={userId} cartId={cartId} />
+
+// ✗ Container owns context — too many props, domain objects passed
+<CheckoutMicrofrontend
+  user={user}                    // full domain object
+  cart={cart}                    // full domain object
+  shippingOptions={shippingOptions}
+  paymentMethods={paymentMethods}
+  discountCodes={discountCodes}
+  onComplete={handleComplete}
+  onError={handleError}
+  theme={theme}
+/>
+```
+
+**Secondary signal**: if the container is making API calls to fetch data before passing it to the micro-frontend, the micro-frontend is not fetching its own data — the container owns context it should not.
+
+
+---
+
+## Rule 3 — Hides implementation details behind an API contract
+
+Define the API contract upfront between producer and consumer teams. Internal implementation details — frameworks, data fetching strategies, database schemas, code structure — stay hidden behind it.
+
+**The API-first principle**: the contract is the binding agreement. Both teams can work in parallel, focused on their side of the contract. Either team can change their internals freely without affecting the other, as long as the contract is respected.
+
+**Strong encapsulation is required** to avoid domain leaks into other parts of the application. When a micro-frontend exposes its internals — through direct imports, shared modules, or coupled data structures — changes inside cascade outside and independent deployment breaks down.
+
+**Violation signals**:
+- Direct imports from one micro-frontend's source into another
+- Shared internal modules or utilities across micro-frontend boundaries
+- Contract changes that require simultaneous updates across multiple teams
+- A micro-frontend exposing more than what consumers strictly need
+
+**Code-checkable patterns**:
+```javascript
+// ✗ CRITICAL — cross-boundary import, bypasses the API contract
+import { UserStore } from '@org/auth-mfe/store'
+import { useCart } from '@org/cart-mfe/hooks'
+import { formatCurrency } from '@org/checkout-mfe/utils'
+
+// ✓ Each micro-frontend accesses only its own internals
+import { formatCurrency } from './utils/currency'
+
+// ✓ Shared utilities belong in an npm package, not a micro-frontend
+import { formatCurrency } from '@org/shared-utils'
+```
+
+**Aliased imports do not fix this**: `import { UserStore as Store } from '@org/auth-mfe/store'` is still a Rule 3 violation. The coupling exists at the resolved module level regardless of the local alias.
+
+
+---
+
+## Rule 4 — Communicates via events, not shared state
+
+Micro-frontends must remain decoupled from each other. A global state manager shared across micro-frontends is an anti-pattern in distributed systems.
+
+**Three channels — do not mix them up:**
+
+| Channel | Who listens | Allowed events | Example |
+|---------|-------------|----------------|---------|
+| **Shell platform bus** | Shell only | `shell:alert`, `shell:modal:open`, `shell:toast` | MFE asks shell to show a modal |
+| **Peer bus (horizontal split)** | Other MFEs on the same page | Domain namespaces (`catalog:*`, `checkout:*`) | Basket reacts to `catalog:itemAdded` |
+| **URL / storage (vertical split)** | Owning MFE via URL or storage | N/A — use paths and tokens | `/catalog/product/sku-1`, `sessionStorage` auth token |
+
+**Shell must not** subscribe to domain events (`catalog:productSelected`, `checkout:completed`). Those belong to peer MFEs or to URL/storage across views.
+
+**For cross-view communication (vertical split)**:
+- Prefer **URL** (first segment changes area; deeper paths stay in the owning MFE)
+- Use **web storage** or **cookies** for auth tokens
+- Never pass complex domain objects between views
+
+**Violation signals**:
+- Shared Redux, Zustand, or MobX store across micro-frontend boundaries
+- `window.__mfe_*` or shell-owned global singletons holding domain data
+- Shell `useEffect` handlers for `catalog:*`, `checkout:*`, or similar domain namespaces
+- Props drilling domain objects or using callbacks as the primary coordination mechanism
+
+**Code-checkable patterns**:
+```javascript
+// ✗ CRITICAL — shared store across boundaries
+import { checkoutStore } from '@org/checkout-mfe/store'
+
+// ✗ CRITICAL — shell listens to domain events
+platformBus.on('catalog:productSelected', handler)  // in shell App.tsx
+
+// ✓ MFE → shell platform chrome
+platformBus.emit('shell:alert', { message: 'Saved', variant: 'success' })
+
+// ✓ Horizontal peers — domain events (not handled by shell)
+eventBus.emit('catalog:itemAdded', { productId })
+
+// ✓ Vertical split — URL
+window.location.href = `/catalog/product/${productId}`
+```
+
+**Callback anti-pattern** (less severe but flag it):
+```jsx
+// ✗ Callbacks as primary coordination mechanism — brittle coupling
+<CheckoutMicrofrontend
+  onUserDataNeeded={(cb) => cb(userData)}
+  onCartUpdate={(data) => updateParentCart(data)}
+/>
+```
+
+---
+
+
+---
+
+## Rule 5 — Deploys independently without coordination
+
+A micro-frontend is built, tested, and deployed without requiring other teams to act. Requiring coordination to release is the primary signal that boundaries are wrong and must be revisited.
+
+**This includes the shell**: micro-frontends must be addable, removable, and upgradeable without deploying the shell.
+
+**The fast-flow test**: can this team ship a feature from idea to production without waiting for another team? If no, the boundary needs to be reviewed.
+
+**Violation signals**:
+- A micro-frontend deployment that requires a simultaneous shell deployment
+- The shell hard-codes a remote URL pointing to a specific versioned build of another MFE — any MFE change forces a shell rebuild
+- Version pinning between micro-frontends in a shared manifest or config file
+- A micro-frontend importing another MFE's exposed module at build time rather than at runtime
+- Shared build artefacts or a monorepo build step that rebuilds multiple MFEs together before any can deploy
+- Teams scheduling joint release windows because of shared dependencies
+
+**Code-checkable patterns**:
+```javascript
+// ✗ Shell hard-codes a versioned remote URL — MFE cannot deploy without shell rebuild
+// webpack.config.js (shell)
+new ModuleFederationPlugin({
+  remotes: {
+    checkout: 'checkout@https://cdn.example.com/checkout/v1.4.2/remoteEntry.js',
+    //                                                    ^^^^^^ pinned version
+  }
+})
+
+// ✓ Shell reads remote URL from runtime config — MFE deploys independently
+new ModuleFederationPlugin({
+  remotes: {
+    checkout: `checkout@${window.__remotes__.checkout}`,
+    // or loaded from a discovery API / environment variable at startup
+  }
+})
+```
+
+```javascript
+// ✗ Build-time import of another MFE's exposed module — creates compile-time coupling
+import { CheckoutWidget } from 'checkout/CheckoutWidget'  // resolved at build
+
+// ✓ Runtime dynamic import — resolved when the user navigates
+const CheckoutWidget = React.lazy(() => import('checkout/CheckoutWidget'))
+```
+
+```yaml
+# ✗ CI/CD pipeline coupling — checkout waits for shell to deploy first
+jobs:
+  deploy-checkout:
+    needs: deploy-shell
+
+# ✓ Fully independent pipeline — triggered only by its own repository
+jobs:
+  deploy-checkout:
+    on:
+      push:
+        branches: [main]
+```
+
+
+---
+
+## Rule 6 — Isolates failure — never crashes the shell
+
+Runtime composition means network failures and 404s for individual micro-frontends are inevitable. Provide graceful fallbacks for every micro-frontend mount. A failure in one must not cascade to crash the shell or prevent other micro-frontends from loading.
+
+**Graceful degradation strategy**:
+- Non-essential micro-frontends (footer, recommendations): hide silently if they fail
+- Essential micro-frontends (primary page content): show a meaningful fallback — skeleton, error message, retry option
+- The shell must remain navigable regardless of which micro-frontends fail
+
+**Violation signals**:
+- A micro-frontend failure that produces a blank page or uncaught JavaScript error in the shell
+- No fallback UI defined for any remote mount point
+- A micro-frontend that depends on another micro-frontend loading first before it can render
+
+**Code-checkable patterns**:
+```jsx
+// ✗ No fallback — a checkout failure crashes the shell
+<CheckoutMicrofrontend userId={userId} cartId={cartId} />
+
+// ✓ Fallback in the shell — correct placement
+<ErrorBoundary fallback={<CheckoutFallback />}>
+  <CheckoutMicrofrontend userId={userId} cartId={cartId} />
+</ErrorBoundary>
+
+// ✗ Wrong placement — fallback inside the micro-frontend only catches
+// errors in its own render tree, not module load failures
+export function CheckoutMicrofrontend() {
+  return (
+    <ErrorBoundary fallback={<div>Error</div>}>  // ← wrong place
+      <CheckoutApp />
+    </ErrorBoundary>
+  )
+}
+```
+
+**Framework equivalents — failure isolation patterns per toolchain:**
+
+```typescript
+// Native Federation (Angular) — error boundary via wrapper component
+// ✓ Shell wraps each remote route with an error boundary component
+// remote-wrapper.component.ts (shell)
+@Component({
+  selector: 'app-remote-wrapper',
+  template: `
+    @if (loadError) {
+      <app-checkout-fallback />          <!-- fallback defined in shell -->
+    } @else {
+      <ng-content />                     <!-- remote renders here -->
+    }
+  `
+})
+export class RemoteWrapperComponent implements OnInit {
+  loadError = false
+
+  ngOnInit() {
+    // Catch errors from loadRemoteModule at the shell level
+  }
+}
+
+// app.routes.ts — shell wraps every remote load
+{
+  path: 'checkout',
+  component: RemoteWrapperComponent,
+  children: [{
+    path: '',
+    loadComponent: () =>
+      loadRemoteModule('checkout', './CheckoutComponent')
+        .then(m => m.CheckoutComponent)
+        .catch(() => CheckoutFallbackComponent)  // fallback in shell if load fails
+  }]
+}
+
+// ✗ Wrong — Angular ErrorHandler inside the remote catches only internal errors
+// checkout.component.ts (remote)
+@Injectable()
+class CheckoutErrorHandler implements ErrorHandler {
+  handleError(error: unknown) { /* only catches errors within checkout */ }
+}
+// Module load failure never reaches this handler
+```
+
+```javascript
+// Module Federation v2 — error boundary via @module-federation/runtime error hook
+// ✓ Shell-level error handling using the runtime plugin API
+import { init } from '@module-federation/runtime'
+
+await init({
+  name: 'shell',
+  remotes: [{ name: 'checkout', entry: window.__remotes__.checkout }],
+  plugins: [{
+    name: 'error-boundary-plugin',
+    errorLoadRemote({ id, error, from }) {
+      console.error(`Remote ${id} failed to load`, error)
+      // Return a fallback module — resolved in the shell
+      return { factory: () => ({ default: CheckoutFallbackComponent }) }
+    }
+  }]
+})
+
+// ✗ No error hook — a checkout load failure throws an unhandled promise rejection
+await init({ name: 'shell', remotes: [...] })
+const { CheckoutApp } = await loadRemote('checkout/CheckoutApp')
+// If checkout is unavailable, this line throws and the shell crashes
+```
+
+```javascript
+// Single SPA — error handling via mountRootParcel options
+// ✓ Shell catches parcel mount errors per-application
+import { mountRootParcel } from 'single-spa'
+
+const parcel = mountRootParcel(checkoutConfig, {
+  domElement: document.getElementById('checkout-mount'),
+})
+parcel.mountPromise.catch(err => {
+  console.error('Checkout failed to mount', err)
+  // Render fallback into the mount point from the shell
+  document.getElementById('checkout-mount').innerHTML = checkoutFallbackHtml
+})
+
+// ✓ Application-level error handling via single-spa error events
+window.addEventListener('single-spa:app-change', evt => {
+  const { detail: { appsByNewStatus } } = evt
+  if (appsByNewStatus.LOAD_ERROR?.includes('checkout')) {
+    renderCheckoutFallback()  // shell handles the failure
+  }
+})
+
+// ✗ No error handling — a checkout mount failure is swallowed or crashes the shell
+mountRootParcel(checkoutConfig, { domElement })
+// No .catch(), no fallback, no shell-level recovery
+```
+
+```jsx
+// React with Module Federation v1 or v2 — React.lazy + ErrorBoundary (reference)
+// ✓ Fallback in the shell, not inside the remote
+const CheckoutMfe = React.lazy(() =>
+  import('checkout/CheckoutApp').catch(() => ({
+    default: () => <CheckoutFallback />   // fallback module if remote unavailable
+  }))
+)
+
+function Shell() {
+  return (
+    <ErrorBoundary fallback={<CheckoutFallback />}>  {/* shell owns the boundary */}
+      <Suspense fallback={<CheckoutSkeleton />}>
+        <CheckoutMfe userId={userId} cartId={cartId} />
+      </Suspense>
+    </ErrorBoundary>
+  )
+}
+```
+
+---
+
+
+---
+
+## Rule 7 — Is coarse-grained enough to prevent context leakage
+
+Avoid fine-grained micro-frontends. Fine granularity produces higher coupling, more external dependencies, and context leakage toward the container — the shell or a shared layer starts accumulating domain knowledge it should not own.
+
+**There is no universal correct size**. A micro-frontend may be an entire view or group of views (vertical split) or one of several composing a single view (horizontal split). The right size is determined by domain ownership and team structure, not by line count or component count.
+
+**The nesting threshold**: no more than 3 micro-frontends should compose a single view. Beyond 3, the coordination surface in the container grows enough that domain logic reliably starts leaking into the shell. Flag anything above 3 as a review signal; treat it as a hard violation above 5.
+
+**Nesting depth**: micro-frontends must not nest inside other micro-frontends. Depth must stay at 1 — the shell or page container loads MFEs directly. Any nesting beyond that means the inner unit is a component, not a micro-frontend.
+
+**The distributed monolith warning**: high granularity in a horizontal split risks creating a distributed monolith — a system distributed across many independently deployed units but tightly coupled in design and interdependencies, nullifying the effort of building the architecture.
+
+**Violation signals**:
+- More than 3 micro-frontends composing a single view (review signal); more than 5 (hard violation)
+- A micro-frontend rendered as a child of another micro-frontend (nesting depth > 1)
+- A micro-frontend that cannot render without another micro-frontend being present
+- The container (shell or page wrapper) accumulating business logic to coordinate multiple micro-frontends
+- Shell route table includes paths below the first segment (`/catalog/product/:id` in shell instead of in catalog MFE)
+- Shell hard-codes per-MFE routes in source instead of a runtime first-level manifest (forces redeploy/code change to add an MFE)
+- Shell subscribes to domain-scoped events (`catalog:*`, `checkout:*`, `cart:*`) — platform events (`shell:alert`, `shell:modal:open`) are allowed
+
+**Code-checkable patterns**:
+```jsx
+// ✗ Nesting depth violation — MFE inside another MFE
+<CatalogMicrofrontend>
+  <ProductCardMicrofrontend productId={id} />   // ← depth 2, violation
+  <PricingMicrofrontend productId={id} />        // ← depth 2, violation
+  <ReviewsMicrofrontend productId={id} />        // ← depth 2, violation
+</CatalogMicrofrontend>
+
+// ✗ Too many MFEs per view — 6 is a hard violation
+<Shell>
+  <NavigationMfe />
+  <CatalogMfe />
+  <RecommendationsMfe />
+  <PricingMfe />
+  <ReviewsMfe />
+  <PromotionsMfe />    // ← 6th MFE in one view, review boundary design
+</Shell>
+
+// ✓ Correct depth — shell loads MFEs directly, each owns its domain
+<Shell>
+  <NavigationMfe />
+  <CatalogMfe />       // owns product cards, pricing, and reviews internally
+  <PromotionsMfe />
+</Shell>
+
+// ✓ Shell — first URL segment only; catalog MFE owns /catalog/*
+// routes.json: { "path": "/catalog/*", "scope": "catalog_mfe" }
+<Route path="/catalog/*" element={<CatalogMfe userId={userId} />} />
+
+// ✗ Shell — domain sub-route (catalog team should own this)
+<Route path="/catalog/product/:productId" element={<CatalogProductPage />} />
+```
+
+See `routing-ownership.md` for full routing patterns.
+
+```javascript
+// ✗ Shell accumulating domain logic to coordinate micro-frontends
+function Shell() {
+  const [checkoutState, setCheckoutState] = useState()
+  const [inventoryState, setInventoryState] = useState()
+
+  const canProceed = checkoutState.items.every(
+    item => inventoryState.stock[item.id] > 0  // domain logic in shell
+  )
+
+  return (
+    <>
+      <CheckoutMicrofrontend onStateChange={setCheckoutState} />
+      <InventoryMicrofrontend onStateChange={setInventoryState} />
+      {canProceed && <PaymentMicrofrontend />}
+    </>
+  )
+}
+```
+
+
+---
+
+## Rule 8 — Owned end-to-end by a single team
+
+One team owns a micro-frontend across its full lifecycle: design, development, deployment, and operations. Shared ownership or ambiguous ownership is a boundary problem.
+
+**Why single ownership matters**: decentralised governance only works when ownership is unambiguous. When two teams co-own a micro-frontend, decisions become centralised again — every change requires coordination, and the autonomy benefit disappears.
+
+**Violation signals**:
+- Two teams committing to the same micro-frontend repository
+- No clear team identified as the deployment owner
+- Decisions about the micro-frontend's internals requiring sign-off from another team
+- A micro-frontend that grew to serve multiple business domains across multiple team boundaries
+
+**Code-checkable patterns**:
+```
+# ✗ CODEOWNERS — multiple teams for the same MFE
+/packages/checkout-mfe/   @team-checkout @team-payments
+
+# ✓ Single owning team
+/packages/checkout-mfe/   @team-checkout
+```
+
+---
+
+
+---

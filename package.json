@@ -1,0 +1,21 @@
+{
+  "name": "mfe-skills",
+  "version": "1.0.0",
+  "description": "Micro-frontend boundary governance skills for AI coding agents",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lucamezzalira/mfe-skills.git"
+  },
+  "scripts": {
+    "build": "node scripts/build-cursor.js && node scripts/build-agents.js",
+    "build:cursor": "node scripts/build-cursor.js",
+    "build:agents": "node scripts/build-agents.js",
+    "validate": "node scripts/validate.js",
+    "test": "node scripts/smoke-test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "home_mfe": "https://cdn.example.com/home/remoteEntry.js",
+  "catalog_mfe": "https://cdn.example.com/catalog/remoteEntry.js",
+  "checkout_mfe": "https://cdn.example.com/checkout/remoteEntry.js"
+}

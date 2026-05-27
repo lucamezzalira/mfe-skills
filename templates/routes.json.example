@@ -1,0 +1,21 @@
+[
+  {
+    "path": "/",
+    "scope": "home_mfe",
+    "module": "./HomeApp",
+    "navLabel": "Home",
+    "exact": true
+  },
+  {
+    "path": "/catalog/*",
+    "scope": "catalog_mfe",
+    "module": "./CatalogApp",
+    "navLabel": "Catalog"
+  },
+  {
+    "path": "/checkout/*",
+    "scope": "checkout_mfe",
+    "module": "./CheckoutApp",
+    "navLabel": "Checkout"
+  }
+]

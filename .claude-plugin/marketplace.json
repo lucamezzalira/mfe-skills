@@ -1,0 +1,19 @@
+{
+  "name": "mfe-skills",
+  "owner": {
+    "name": "Luca Mezzalira",
+    "email": "luca@50cents.media"
+  },
+  "metadata": {
+    "description": "Micro-frontend architecture governance for AI code assistants",
+    "homepage": "https://github.com/lucamezzalira/mfe-skills"
+  },
+  "plugins": [
+    {
+      "name": "mfe-skills",
+      "source": ".",
+      "description": "Boundary design, eight boundary rules, violation detection, remediation. Pairs with micro-frontend-canvas skill. Module Federation v1/v2, Native Federation, Single SPA.",
+      "version": "1.0.0"
+    }
+  ]
+}

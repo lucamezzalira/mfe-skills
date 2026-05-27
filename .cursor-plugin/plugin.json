@@ -1,0 +1,11 @@
+{
+  "name": "mfe-skills",
+  "version": "1.0.0",
+  "description": "Micro-frontend architecture governance: eight boundary rules, violation detection, remediation. Pairs with micro-frontend-canvas skill for Canvas facilitation. Module Federation v1/v2, Native Federation, Single SPA.",
+  "author": {
+    "name": "Luca Mezzalira",
+    "email": "luca@50cents.media"
+  },
+  "homepage": "https://github.com/lucamezzalira/mfe-skills",
+  "license": "MIT"
+}

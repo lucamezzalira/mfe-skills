@@ -1,0 +1,416 @@
+# Remediation patterns
+
+**Version**: 1.2 | **Skill**: reviewing-mfe-boundaries | **Source**: *Building Micro-Frontends* (O'Reilly)
+
+Each section maps to one of the eight boundary rules.
+
+---
+
+## Rule 1 — Reframing a component as a micro-frontend (or vice versa)
+
+If a unit named or behaving as a UI component is being integrated as a micro-frontend, the fix is to decide which it actually is:
+
+**If it is truly a shared UI primitive** (button, form field, layout wrapper): move it to an npm design system package. Remove the runtime integration overhead. It should be a versioned package dependency, not a deployed micro-frontend.
+
+**If it is truly a business capability** masquerading as a component: rename it to reflect the domain, assign a single team to own it, and ensure it fetches its own data rather than receiving domain objects as props.
+
+**If the boundary is ambiguous**: run the boundary health check from `mfe-core-concepts/references/rules.md`. If it fails two or more tests, it is in the wrong category.
+
+---
+
+## Rule 2 — Reducing an oversized API surface
+
+**Before** — container owns context:
+```jsx
+<CheckoutMicrofrontend
+  user={user}
+  cart={cart}
+  shippingOptions={shippingOptions}
+  paymentMethods={paymentMethods}
+  discountCodes={discountCodes}
+/>
+```
+
+**After — step 1**: identify which props are domain data the micro-frontend should fetch itself.
+
+In this example: `shippingOptions`, `paymentMethods`, and `discountCodes` are checkout domain data. The checkout micro-frontend should retrieve them from its own backend (BFF or API layer), not receive them from the container.
+
+**After — step 2**: reduce to the minimum context identifiers:
+```jsx
+// The checkout MFE fetches its own shipping options, payment methods, discounts
+<CheckoutMicrofrontend userId={userId} cartId={cartId} />
+```
+
+**After — step 3**: inside the checkout micro-frontend, fetch domain data directly:
+```javascript
+// Inside checkout-mfe — fetches its own data
+function CheckoutApp({ userId, cartId }) {
+  const cart = useCartData(cartId)           // own API call
+  const shippingOptions = useShipping()      // own API call
+  const paymentMethods = usePaymentMethods() // own API call
+}
+```
+
+**When the container genuinely needs to pass more context**: if the use case truly requires more than 5 props, consider whether the boundary is in the right place. Two micro-frontends that share substantial context may belong to the same domain and should be one micro-frontend owned by one team.
+
+---
+
+## Rule 3 — Removing a cross-boundary import
+
+**Before** — direct import from another MFE's internals:
+```javascript
+// In checkout-mfe — VIOLATION
+import { UserStore } from '@org/auth-mfe/store'
+import { getAuthToken } from '@org/auth-mfe/auth'
+```
+
+**Fix option A — auth transparency patterns** (choose the pattern that matches the shell architecture):
+
+```javascript
+// Pattern 1: MFE reads token directly from storage — fully independent
+const authToken = sessionStorage.getItem('auth_token')
+// or from a cookie set by the auth MFE
+const authToken = document.cookie.match(/auth_token=([^;]+)/)?.[1]
+// MFE uses this token to call its own BFF directly
+```
+
+```javascript
+// Pattern 2: Shell provides a fetch wrapper that injects auth headers automatically
+// The MFE makes plain fetch() calls with no knowledge of auth at all.
+// The shell installs the wrapper at startup — token refresh is handled transparently.
+
+// shell/src/fetchWrapper.js
+const originalFetch = window.fetch
+window.fetch = async (url, options = {}) => {
+  const token = await getValidToken()  // shell handles refresh logic
+  return originalFetch(url, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Bearer ${token}` }
+  })
+}
+
+// checkout-mfe — calls its BFF with no auth concern
+const cart = await fetch('/api/cart').then(r => r.json())
+```
+
+Pattern 2 handles credential plumbing transparently. However, in long-running applications MFEs may hold reactive state that derives from auth — a logged-in flag, a user role, a display name — and this state must update when the shell refreshes or invalidates the token. The fetch wrapper alone does not propagate these changes.
+
+Combine Pattern 2 with auth state events on the shared event bus. The shell emits whenever auth state changes; each MFE that holds derived auth state subscribes and reacts:
+
+```javascript
+// shell — emits on every token refresh and on logout
+eventBus.emit('auth:tokenRefreshed', { userId, roles, expiresAt })
+eventBus.emit('auth:sessionEnded', {})
+
+// checkout-mfe — subscribes to auth state changes
+eventBus.on('auth:tokenRefreshed', ({ userId, roles }) => {
+  setCurrentUser({ userId, roles })   // update local reactive state
+  // fetch wrapper already updated the credential — just sync identity state
+})
+eventBus.on('auth:sessionEnded', () => {
+  clearLocalState()
+  showSessionExpiredMessage()
+})
+```
+
+```typescript
+// Pattern 3: Shell passes a single auth token via InjectionToken (Angular) or prop (React)
+// The MFE uses it to bootstrap one BFF call; the BFF owns session from there.
+
+// Angular — shell provides token once at startup
+providers: [{ provide: AUTH_TOKEN, useValue: currentToken }]
+
+// checkout.component.ts (remote)
+private token = inject(AUTH_TOKEN)  // one scalar value, not a domain object
+
+// React — shell passes token as a single prop
+<CheckoutMicrofrontend userId={userId} cartId={cartId} authToken={token} />
+// checkout uses authToken only to make its first BFF call
+```
+
+The fetch wrapper owns credential injection; the event bus owns auth state propagation. A MFE that only makes API calls and holds no auth-derived UI state needs only Pattern 2. A MFE that also renders user identity, roles, or personalised content needs both.
+
+**Fix option B — move shared logic to an npm package** (for utilities, not domain data):
+```javascript
+// If formatCurrency is genuinely shared utility:
+// Before: import { formatCurrency } from '@org/checkout-mfe/utils'
+// After: extract to a package
+import { formatCurrency } from '@org/frontend-utils'
+```
+
+The key principle across all options: the MFE must never import from another MFE's module to obtain credentials or data. Pattern 1–3 above cover auth; Fix option B covers shared utilities. The receiving MFE retrieves its own domain data from its own backend.
+
+---
+
+## Rule 4 — Replacing shared state with events
+
+**Before** — global state manager:
+```javascript
+// VIOLATION — shared Redux store across MFE boundaries
+// In checkout-mfe:
+import { useSelector, useDispatch } from 'react-redux'
+import { store } from '@org/shell/store'
+const cartItems = useSelector(state => state.cart.items)
+```
+
+**Fix — event emitter pattern**:
+
+Step 1: the shell creates an event bus. Inject it using the mechanism appropriate to the toolchain — do not use a raw `window` property, which has no type safety, risks name collisions in multi-vendor environments, and does not work across iframe boundaries.
+
+```javascript
+// React / Module Federation — pass event bus as a custom prop or via context
+// Shell creates the bus and passes it as a prop to each remote
+const eventBus = createEventBus()
+
+// Option A: prop injection (explicit, type-safe)
+<CheckoutMicrofrontend userId={userId} cartId={cartId} eventBus={eventBus} />
+
+// Option B: React context provided by the shell (preferred for deep trees)
+<EventBusProvider value={eventBus}>
+  <CheckoutMicrofrontend userId={userId} cartId={cartId} />
+</EventBusProvider>
+```
+
+```typescript
+// Angular / Native Federation — inject via Angular InjectionToken
+// shell: provide the event bus as a token
+export const EVENT_BUS = new InjectionToken<EventBus>('EVENT_BUS')
+
+// app.config.ts (shell)
+providers: [{ provide: EVENT_BUS, useValue: createEventBus() }]
+
+// Remote component consumes it via inject()
+@Component({ ... })
+export class CheckoutComponent {
+  private eventBus = inject(EVENT_BUS)
+}
+```
+
+```javascript
+// Single SPA — pass event bus via customProps
+// root-config.js (shell)
+const eventBus = createEventBus()
+
+registerApplication({
+  name: 'checkout',
+  app: () => import('checkout/main'),
+  activeWhen: '/checkout',
+  customProps: { eventBus }  // typed, explicit, no global pollution
+})
+
+// checkout-spa/main.js
+export function mount(props) {
+  const { eventBus } = props
+  eventBus.on('cart:updated', () => { ... })
+}
+```
+
+Step 2: each micro-frontend emits and listens using the injected bus:
+
+```javascript
+// Cart MFE — emits when cart changes
+eventBus.emit('cart:updated', { itemCount: cart.items.length })
+
+// Checkout MFE — listens and fetches its own data
+eventBus.on('cart:updated', async () => {
+  const cart = await fetchCartFromOwnAPI()  // own API call, never reads another MFE's state
+  setCart(cart)
+})
+```
+
+**For cross-view data** (vertical split) — replace domain object passing with identifier + self-fetch:
+```javascript
+// Before: passing full user object via history state
+window.history.pushState({ user: fullUserObject }, '', '/catalog')
+
+// After: pass only the ID; catalog fetches its own user data
+window.location.href = `/catalog?userId=${userId}`
+// Catalog MFE: const userId = new URLSearchParams(location.search).get('userId')
+// Then fetches user context from its own BFF
+```
+
+---
+
+## Rule 5 — Decoupling deployments
+
+Rule 5 has three distinct violation types. Each requires a different fix.
+
+### Fix A — Versioned remote URL in shell config (Module Federation v1)
+
+**Before** — pinned version forces shell rebuild on every remote deploy:
+```javascript
+// shell/webpack.config.js
+new ModuleFederationPlugin({
+  remotes: {
+    checkout: 'checkout@https://cdn.example.com/checkout/v2.3.1/remoteEntry.js',
+  }
+})
+```
+
+**After** — shell reads URL from runtime config:
+```javascript
+new ModuleFederationPlugin({
+  remotes: {
+    checkout: `checkout@${window.__remotes__.checkout}`,
+  }
+})
+// window.__remotes__ loaded from a config API at shell startup
+```
+
+### Fix B — Versioned manifest URL (Module Federation v2)
+
+**Before**:
+```javascript
+import { init } from '@module-federation/runtime'
+await init({
+  remotes: [{ name: 'checkout', entry: 'https://cdn.example.com/checkout/v2.3.1/mf-manifest.json' }]
+})
+```
+
+**After**:
+```javascript
+await init({
+  remotes: [{ name: 'checkout', entry: window.__remotes__.checkout }]
+})
+```
+
+### Fix C — Committed manifest file (Native Federation / Angular)
+
+**Before** — `federation.manifest.json` committed to the shell repo with pinned versions:
+```json
+{ "checkout": "https://cdn.example.com/checkout/v1.8.0/remoteEntry.json" }
+```
+
+**After** — manifest served from a managed endpoint the shell does not own:
+```typescript
+// app.config.ts (shell)
+fetch('/api/mfe-manifest')
+  .then(r => r.json())
+  .then(manifest => setManifest(manifest))
+```
+
+### Fix D — Pinned import map (Single SPA)
+
+**Before** — `importmap.json` committed to shell repo with pinned versions:
+```json
+{ "imports": { "checkout": "https://cdn.example.com/checkout/v3.2.1/checkout.js" } }
+```
+
+**After** — import map served from a managed endpoint; each team controls their own entry:
+```javascript
+// shell/index.html — load the import map from a versioned endpoint at startup
+// Each team deploys updates to their own entry; no shell PR required
+<script type="systemjs-importmap" src="https://config.example.com/importmap.json"></script>
+
+// Or with import-map-overrides for local dev:
+<script src="https://cdn.jsdelivr.net/npm/import-map-overrides/dist/import-map-overrides.js"></script>
+// Developers override individual entries without touching the shell:
+// importMapOverrides.addOverride('checkout', 'http://localhost:8081/checkout.js')
+```
+
+### Fix E — CI/CD pipeline coupling
+
+**Before**:
+```yaml
+jobs:
+  deploy-checkout:
+    needs: deploy-shell
+```
+
+**After** — fully independent pipeline per MFE:
+```yaml
+# checkout-mfe/.github/workflows/deploy.yml
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy-checkout:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm run deploy
+```
+
+---
+
+## Rule 6 — Adding graceful fallbacks
+
+**Fix — add error boundary in the shell** (not inside the micro-frontend):
+
+```jsx
+// Shell — correct placement
+function Shell() {
+  return (
+    <main>
+      <ErrorBoundary fallback={<NavigationFallback />}>
+        <NavigationMicrofrontend />
+      </ErrorBoundary>
+
+      <ErrorBoundary fallback={<ContentFallback message="Content temporarily unavailable" />}>
+        <ContentMicrofrontend />
+      </ErrorBoundary>
+
+      <ErrorBoundary fallback={null}> {/* silent hide for non-essential */}
+        <RecommendationsMicrofrontend />
+      </ErrorBoundary>
+    </main>
+  )
+}
+```
+
+**Fallback design principle**: the severity of the fallback should match the importance of the micro-frontend.
+- Essential (primary content): show a meaningful message with a retry option
+- Supporting (sidebar, recommendations): show a skeleton or silently hide
+- Decorative (footer, promotional banner): hide silently (`fallback={null}`)
+
+---
+
+## Rule 7 — Consolidating a granular horizontal split
+
+When too many micro-frontends compose a view and the container has accumulated coordination logic:
+
+**Step 1 — identify which micro-frontends share a domain**: do they share data, emit events to each other, or require coordinated deployment? If yes, they may belong to the same bounded context.
+
+**Step 2 — merge micro-frontends that share a domain**:
+```jsx
+// Before — three fine-grained MFEs for product detail
+<ProductImagesMicrofrontend productId={id} />
+<ProductPricingMicrofrontend productId={id} />
+<ProductReviewsMicrofrontend productId={id} />
+
+// After — one MFE owns the complete product detail domain
+<ProductDetailMicrofrontend productId={id} />
+// Internally manages images, pricing, and reviews
+```
+
+**Step 3 — move coordination logic from the shell into the owning micro-frontend**:
+
+```jsx
+// Before — shell computing domain outcomes (domain logic leak)
+function Shell() {
+  const [checkoutState, setCheckoutState] = useState()
+  const [inventoryState, setInventoryState] = useState()
+  const canProceed = checkoutState.items.every(
+    item => inventoryState.stock[item.id] > 0  // ✗ domain logic in shell
+  )
+  return (
+    <>
+      <CheckoutMicrofrontend onStateChange={setCheckoutState} />
+      <InventoryMicrofrontend onStateChange={setInventoryState} />
+      {canProceed && <PaymentMicrofrontend />}
+    </>
+  )
+}
+
+// After — shell orchestrates loading only; domain logic lives inside the MFE
+function Shell() {
+  return (
+    <>
+      <CheckoutMicrofrontend userId={userId} cartId={cartId} />
+      {/* CheckoutMFE internally checks inventory via its own BFF
+          and controls whether payment is available */}
+    </>
+  )
+}
+```
+
+**When horizontal split is genuinely needed**: if the micro-frontends represent different business domains that happen to share a view, the split is correct. The fix is not to merge them but to ensure communication goes through events (Rule 4) and each one fetches its own data (Rule 2). The container should only pass the minimal shared context (a page ID, a session token).
