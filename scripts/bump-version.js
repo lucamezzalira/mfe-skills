@@ -13,6 +13,7 @@
 const fs = require('fs')
 const path = require('path')
 const { execSync } = require('child_process')
+const { classifySubject } = require('./conventional-commit')
 
 const root = path.join(__dirname, '..')
 
@@ -102,25 +103,15 @@ function classifyCommit({ subject, body }) {
   const text = `${subject}\n${body}`
   const firstLine = subject.trim()
 
-  if (/BREAKING CHANGE/i.test(text) || /^break(ing)?:/i.test(firstLine)) {
-    return { level: 'major', reason: 'breaking change' }
+  if (/BREAKING CHANGE/i.test(text)) {
+    return { level: 'major', reason: 'breaking change in body' }
   }
 
-  const conv = /^(\w+)(?:\([^)]+\))?!:\s/.exec(firstLine)
-  if (conv) return { level: 'major', reason: `${conv[1]}! (breaking)` }
-
-  const convPlain = /^(\w+)(?:\([^)]+\))?:\s/.exec(firstLine)
-  const type = convPlain ? convPlain[1].toLowerCase() : null
-
-  if (type === 'feat' || type === 'feature') return { level: 'minor', reason: 'feat' }
-  if (['fix', 'perf', 'revert', 'refactor', 'security'].includes(type)) {
-    return { level: 'patch', reason: type }
-  }
-  if (['docs', 'chore', 'style', 'test', 'ci', 'build', 'deps'].includes(type)) {
-    return { level: 'none', reason: type }
+  const level = classifySubject(firstLine)
+  if (level !== 'none') {
+    return { level, reason: firstLine.split(':')[0] }
   }
 
-  // Merge commits / free-form: conservative patch if it looks like a fix
   if (/^(fix|hotfix|bug)\b/i.test(firstLine)) return { level: 'patch', reason: 'heuristic fix' }
   if (/^(feat|feature|add)\b/i.test(firstLine)) return { level: 'minor', reason: 'heuristic feat' }
   if (/\bbreaking\b/i.test(firstLine)) return { level: 'major', reason: 'heuristic breaking' }

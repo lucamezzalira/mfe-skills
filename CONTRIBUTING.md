@@ -18,6 +18,41 @@ npm test
 
 Open a PR. CI runs the same checks on push to `main`.
 
+## PR titles (required before merge)
+
+We **squash-merge** PRs, so the **PR title becomes the commit message** used by the release workflow.
+
+CI job **PR title (conventional commits)** enforces:
+
+| PR changes | Title must look like |
+|------------|----------------------|
+| Anything | Valid [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): description` |
+| Files under `skills/` | `feat(skills): …`, `fix(skills): …`, `perf(skills): …`, etc. — scope **`(skills)`** required |
+| `skills/` breaking | `feat(skills)!: …` or `breaking: …` |
+
+Docs-only PRs: `docs: update README`, `chore(ci): …`, `ci: …` — no `(skills)` scope needed.
+
+Test locally:
+
+```bash
+PR_TITLE='fix(skills): rule 4 wording' SKILLS_CHANGED=true npm run validate:pr-title
+PR_TITLE='chore(ci): workflow' SKILLS_CHANGED=false npm run validate:pr-title
+```
+
+### Branch protection (repo admins)
+
+GitHub does not run “hooks” on the client; use **branch protection** so merges are blocked until checks pass. Admins can bypass if you allow it in settings.
+
+**Settings → Branches → Add branch ruleset** (or classic rule) for `main`:
+
+1. **Require a pull request before merging**
+2. **Require status checks to pass** — select **`PR title (conventional commits)`** (and optionally **Build distributions**)
+3. **Require branches to be up to date** (recommended)
+4. **Restrict who can push to matching branches** — optional; limits direct pushes to admins
+5. **Allow bypassing pull request requirements** — leave **off** for everyone, or enable **only for administrators** if you want emergency merges without review
+
+Squash merge only (recommended): **Settings → General → Pull Requests → Allow squash merging** and disable merge commits if you want one commit per PR with a clean title.
+
 ## What to edit
 
 | Path | Purpose |
@@ -100,5 +135,6 @@ Use conventional prefixes on skill commits when using **auto**, e.g. `feat(skill
 - [ ] Changed only `skills/` (and docs/templates) unless running `npm run build`
 - [ ] `npm run validate` passes
 - [ ] `npm run build && npm test` passes
+- [ ] PR title follows conventional commits (see above)
 - [ ] Version bumped via release workflow only if `skills/` behaviour visible to users changed
 - [ ] README updated if install or activation changes

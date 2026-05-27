@@ -13,6 +13,7 @@
     "build:cursor": "node scripts/build-cursor.js",
     "build:agents": "node scripts/build-agents.js",
     "validate": "node scripts/validate.js",
+    "validate:pr-title": "node scripts/validate-pr-title.js",
     "test": "node scripts/smoke-test.js",
     "release:bump": "node scripts/bump-version.js"
   },
