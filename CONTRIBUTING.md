@@ -70,6 +70,27 @@ Bump **`package.json` version** and matching fields in:
 
 Tag releases on GitHub (`v1.0.0`, `v1.1.0`, …) when publishing meaningful skill changes.
 
+### Automated release (GitHub Actions)
+
+**Actions → Release (version bump) → Run workflow**
+
+| Input | Meaning |
+|-------|---------|
+| **auto** | Infer bump from [Conventional Commits](https://www.conventionalcommits.org/) since the latest `v*` tag (`feat` → minor, `fix` → patch, `BREAKING CHANGE` / `type!:` → major) |
+| **patch / minor / major** | Force that bump regardless of commit messages |
+| **dry_run** | Print analysis only; no commit or tag |
+| **create_github_release** | Open a GitHub Release on the new tag |
+
+Locally:
+
+```bash
+npm run release:bump -- --dry-run              # preview (auto)
+npm run release:bump -- --bump minor --dry-run # preview (forced)
+npm run release:bump -- --bump patch           # apply (then commit/tag yourself)
+```
+
+The workflow updates `package.json`, plugin manifests, SKILL `metadata.version` (major.minor), runs `build:agents`, commits, tags `vX.Y.Z`, and pushes.
+
 ## Pull request checklist
 
 - [ ] Changed only `skills/` (and docs/templates) unless running `npm run build`

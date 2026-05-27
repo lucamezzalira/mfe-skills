@@ -1,0 +1,103 @@
+name: Release (version bump)
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Bump type (auto = from conventional commits since last tag)'
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+      dry_run:
+        description: 'Preview only — do not commit, tag, or push'
+        required: false
+        type: boolean
+        default: false
+      create_github_release:
+        description: 'Create a GitHub Release for the new tag'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Compute and apply version bump
+        id: bump
+        env:
+          INPUT_BUMP: ${{ inputs.bump }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          ARGS=(--bump "$INPUT_BUMP")
+          if [ "$INPUT_DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
+          node scripts/bump-version.js "${ARGS[@]}"
+
+      - name: Rebuild generated artifacts
+        if: inputs.dry_run != true
+        run: npm run build
+
+      - name: Validate and smoke test
+        if: inputs.dry_run != true
+        run: |
+          node scripts/validate.js
+          npm run test
+
+      - name: Commit version bump
+        if: inputs.dry_run != true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json .claude-plugin/ .cursor-plugin/ skills/*/SKILL.md AGENTS.md .cursor/rules/
+          git commit -m "chore(release): v${{ steps.bump.outputs.new_version }}"
+
+      - name: Push commit and tag
+        if: inputs.dry_run != true
+        run: |
+          git tag "${{ steps.bump.outputs.tag_name }}"
+          git push origin main
+          git push origin "${{ steps.bump.outputs.tag_name }}"
+
+      - name: Create GitHub Release
+        if: inputs.dry_run != true && inputs.create_github_release == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PREV="${{ steps.bump.outputs.current_version }}"
+          NEXT="${{ steps.bump.outputs.new_version }}"
+          TAG="${{ steps.bump.outputs.tag_name }}"
+          LEVEL="${{ steps.bump.outputs.bump_level }}"
+          gh release create "$TAG" \
+            --title "mfe-skills $TAG" \
+            --notes "$(cat <<EOF
+## mfe-skills $TAG
+
+**Bump:** \`$PREV\` → \`$NEXT\` (${LEVEL})
+
+Install at this tag:
+
+\`\`\`bash
+git clone --depth 1 --branch $TAG https://github.com/${{ github.repository }}.git
+\`\`\`
+
+Or pin a submodule: \`git checkout $TAG\`
+
+See [README](https://github.com/${{ github.repository }}#installation) for Cursor, Claude Code, and Codex setup.
+EOF
+)"
