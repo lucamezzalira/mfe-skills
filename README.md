@@ -15,7 +15,14 @@ AI assistants are good at scaffolding Module Federation quickly. Without governa
 
 We ran a controlled experiment: two agents, same brief (React 19, Module Federation, ecommerce shell + home + catalog MFEs). One built **without** these skills; one built **with** `AGENTS.md` and `reviewing-mfe-boundaries`.
 
-**Reference implementation (with skills):** [lucamezzalira/mfe-with-skills](https://github.com/lucamezzalira/mfe-with-skills) — ThreadTales workspace (Module Federation 2.0, runtime discovery, vendored skills + `AGENTS.md`). Clone it to see governance applied in a real repo, not just in prompts.
+**Reference implementation (with skills):** [lucamezzalira/mfe-with-skills](https://github.com/lucamezzalira/mfe-with-skills) — ThreadTales (Module Federation 2.0, runtime discovery, vendored skills + `AGENTS.md`).
+
+| Branch | Purpose |
+|--------|---------|
+| [`main`](https://github.com/lucamezzalira/mfe-with-skills/tree/main) | Starting point: `AGENTS.md`, `docs/SPEC.md`, skills — no app code |
+| [`ecommerce-init-implementation`](https://github.com/lucamezzalira/mfe-with-skills/tree/ecommerce-init-implementation) | **Runnable app** — AppShell + five remotes, discovery service (`pnpm install` / `pnpm start`) |
+
+Use **`ecommerce-init-implementation`** for Start Here and code review; use **`main`** to bootstrap a new project from spec only.
 
 ### Before vs after (experiment)
 
@@ -154,71 +161,86 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for bump checklist. **Tag a release only 
 
 We ran two agents on the same Module Federation brief — with and without these skills. Full write-up: [docs/experiment.md](docs/experiment.md). Summary table: [Why use these skills?](#why-use-these-skills) above.
 
-| Repo | Role |
-|------|------|
-| [mfe-with-skills](https://github.com/lucamezzalira/mfe-with-skills) | **With skills** — public reference app (ThreadTales, MF 2.0, skills + rules vendored) |
+| Repo / branch | Role |
+|---------------|------|
+| [mfe-with-skills `ecommerce-init-implementation`](https://github.com/lucamezzalira/mfe-with-skills/tree/ecommerce-init-implementation) | **With skills** — runnable ThreadTales (MF 2.0, discovery, `userId` + `platformBus`, shell error boundaries) |
+| [mfe-with-skills `main`](https://github.com/lucamezzalira/mfe-with-skills/tree/main) | Governance + spec only (starting point) |
 | *(local / unpublished)* | **Without skills** — same brief, tutorial-style violations (see experiment doc) |
 
-## Start Here (15 min)
+## Start Here (~15 min)
 
-If you are new to micro-frontends, this walkthrough helps you move from install to a practical first review quickly.
+Walkthrough from clone to a first governed **code** review. **Tested** on branch [`ecommerce-init-implementation`](https://github.com/lucamezzalira/mfe-with-skills/tree/ecommerce-init-implementation): `pnpm install`, `pnpm run build`, AppShell + remotes present, shell `MfeErrorBoundary`, mount props `userId` + `platformBus`. **You** still confirm skills load in your editor (Cursor Settings → Rules).
+
+`main` on [mfe-with-skills](https://github.com/lucamezzalira/mfe-with-skills) is spec + governance only — **check out the implementation branch** for this walkthrough.
+
+### 0) Clone the implementation branch (~2 min)
+
+Skills and `AGENTS.md` are already vendored on this branch — no copy from `mfe-skills` required for the demo.
+
+```bash
+git clone -b ecommerce-init-implementation --depth 1 \
+  https://github.com/lucamezzalira/mfe-with-skills.git
+cd mfe-with-skills
+```
+
+Open this folder in **Cursor** (not the `mfe-skills` repo).
+
+Optional — run the app (two terminals):
+
+```bash
+pnpm install
+pnpm run start:discovery   # terminal 1 (port 2099)
+pnpm start                 # terminal 2 → http://localhost:2000/
+```
 
 ### 1) Pick one target flow
 
-Choose a single user journey (for example: "add to cart and checkout") and map which shell and MFEs are involved.
+Example: **Home** (`/`) → **Catalogue** (`/catalogue/...`) → **Account** (`/account/...` with nested UserDetails / UserPaymentMethods). See `AGENTS.md` §1.1 and `AppShell/src/App.jsx` routes.
 
-### 2) Run a first architecture prompt
+### 2) First architecture prompt
 
-Use this prompt in your assistant:
-
-```text
-I am new to micro-frontends. Analyze this repository and identify:
-1) business boundaries,
-2) candidate MFEs,
-3) anti-patterns against the 8 boundary rules.
-Return findings grouped by severity and include remediation steps.
-```
-
-Expected output:
-- A proposed boundary map by business capability
-- A list of rule violations with severity (Critical/High/Medium)
-- Concrete fixes, not only theory
-
-### 3) Run a boundary-focused code review prompt
-
-Use this prompt on a PR or branch diff:
+With skills active (or `/reviewing-mfe-boundaries`):
 
 ```text
-Review these changes with micro-frontend boundary governance:
-- flag cross-MFE imports and shared state,
-- check API surface size and ownership boundaries,
-- verify shell-level error boundaries and fallback behavior.
-Provide a go/no-go recommendation.
+Using mfe-skills governance, analyze this repository:
+1) business boundaries and candidate MFEs,
+2) anti-patterns against the 8 boundary rules (cite rule numbers),
+3) remediation steps.
+Review AppShell/, remote MFE folders, and frontend-discovery.json.
 ```
 
-Expected output:
-- Clear go/no-go recommendation
-- Violations tied to specific changed files
-- Suggested patch strategy for each violation
+**Expected:** ThreadTales boundary map; citations for discovery manifest, thin shell routes, `platformBus`; no generic essay.
 
-### 4) Capture local context once
+**Verify skills loaded:** answer cites rule numbers (1–8) and references this repo’s patterns (e.g. `frontend-discovery.json`, not a generic `routes.json` unless you use one).
 
-Add your team-specific details in `CLAUDE.md` or `AGENTS.md`:
-- Team ownership per MFE
-- Current toolchain (Module Federation v1/v2, Native Federation, Single SPA)
-- Known exceptions and migration milestones
+### 3) Boundary-focused code review prompt
 
-This turns generic governance guidance into repo-specific decisions.
+Point the agent at real code, e.g. `AppShell/src/components/RemoteMount.jsx`, `AppShell/src/federation/`, and one remote’s entry:
 
-### 5) Definition of done for your first adoption
+```text
+Review AppShell remote loading and mount props against the 8 MFE boundary rules:
+- cross-MFE imports and shared state,
+- API surface size (props into remotes),
+- shell-level error boundaries and fallbacks.
+Provide go/no-go with rule numbers.
+```
 
-For one end-to-end flow, you should be able to confirm:
-- No Rule 3 or Rule 4 violations (no cross-MFE imports, no shared store)
+**Expected on this branch:** **Go** on core rules — e.g. `userId` + `platformBus` only, `MfeErrorBoundary` in shell, runtime discovery (no static remotes in AppShell webpack).
+
+### 4) Project context
+
+[mfe-with-skills `AGENTS.md`](https://github.com/lucamezzalira/mfe-with-skills/blob/ecommerce-init-implementation/AGENTS.md) is the filled ThreadTales example. For **your** app, start from [templates/AGENTS.project-snippet.md](templates/AGENTS.project-snippet.md).
+
+### 5) Definition of done (first adoption)
+
+On one user journey, confirm in **code**:
+
+- No Rule 3 or 4 violations (no cross-MFE imports, no shared store)
 - Shell wraps each remote mount with an error boundary
 - MFE contracts use identifiers, not domain objects
-- A single team clearly owns each deployed MFE
+- One team owns each deployed MFE
 
-If all four are true, you have a healthy baseline to scale.
+On `ecommerce-init-implementation`, use step 3 to verify; extend the checklist when you add new remotes or routes.
 
 ## Updating
 

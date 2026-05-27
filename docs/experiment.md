@@ -10,7 +10,19 @@ Controlled comparison: two AI agents, identical brief, different governance inpu
 | **Governance** | None (tutorial defaults) | `AGENTS.md` + `reviewing-mfe-boundaries` |
 | **Output** | Local sample only (not published) | **[mfe-with-skills](https://github.com/lucamezzalira/mfe-with-skills)** |
 
-The **with-skills** repo is the public proof that governance sticks in a real workspace: ThreadTales reference app, Module Federation 2.0, runtime discovery, vendored `.cursor/skills/` and `.cursor/rules/`, and project-specific `AGENTS.md`. Implementation follows [`docs/SPEC.md`](https://github.com/lucamezzalira/mfe-with-skills/blob/main/docs/SPEC.md) in that repository.
+### Branches on mfe-with-skills
+
+| Branch | Contents |
+|--------|----------|
+| [`main`](https://github.com/lucamezzalira/mfe-with-skills/tree/main) | Starting point: `AGENTS.md`, `docs/SPEC.md`, vendored skills — **no application code** |
+| [`ecommerce-init-implementation`](https://github.com/lucamezzalira/mfe-with-skills/tree/ecommerce-init-implementation) | **Runnable ThreadTales** — AppShell, five remotes, discovery service, `pnpm start` |
+
+Clone the implementation branch to review or run the with-skills sample:
+
+```bash
+git clone -b ecommerce-init-implementation --depth 1 \
+  https://github.com/lucamezzalira/mfe-with-skills.git
+```
 
 ## What we measured
 
@@ -29,44 +41,37 @@ The **with-skills** repo is the public proof that governance sticks in a real wo
 | Cross-MFE imports | Shell imports `catalogMfe/productUtils` | No cross-remote imports |
 | Mount contract | `shellUser`, `cart`, `formatPrice`, `onNavigate` | `userId` + `platformBus` (chrome only) |
 | Shared state | `window.__SHOP_CART__` | URL + platform events; no shared store |
-| Routing | Shell defines home + catalog pages | Shell: `routes.json` first segment only; catalog owns `/catalog/product/:id` |
-| New MFE / route | Edit shell `App.tsx` | Add row to `routes.json` + `remotes.json` |
-| Remote URLs | Hard-coded in webpack | Runtime `remotes.json` / discovery manifest |
+| Routing | Shell defines home + catalog pages | Thin shell routes; catalogue owns `/catalogue/*` depth |
+| New MFE / route | Edit shell `App.tsx` | Discovery manifest + shell top-level route |
+| Remote URLs | Hard-coded in webpack | Runtime `frontend-discovery.json` |
 | Failure handling | `Suspense` only | Shell `ErrorBoundary` + fallback per remote |
-| Shell events | Callbacks / globals | `shell:alert`, `shell:modal:*` — no `catalog:*` in shell |
+| Shell events | Callbacks / globals | Platform notifications via AppShell-owned bus |
 
-The without-skills build had **critical** violations (Rules 3 and 4). The with-skills build aligned with the eight boundary rules and allowed catalog sub-routes without redeploying the shell.
+The without-skills build had **critical** violations (Rules 3 and 4). The with-skills implementation branch aligns with the eight boundary rules.
 
-## Reference implementation
+## Reference implementation (code)
 
-Clone and explore the with-skills output:
-
-```bash
-git clone https://github.com/lucamezzalira/mfe-with-skills.git
-```
-
-Notable paths in that repo:
-
-| Path | Purpose |
-|------|---------|
-| `AGENTS.md` | ThreadTales project context + MFE governance (sections 1–14) |
-| `.cursor/skills/` | Vendored `understanding-mfe-architecture`, `reviewing-mfe-boundaries` |
-| `.cursor/rules/` | Split rules generated from mfe-skills |
-| `docs/SPEC.md` | Ports, discovery manifest, acceptance criteria |
-| `templates/frontend-discovery.json.example` | Runtime manifest starter |
+| Path (on `ecommerce-init-implementation`) | Purpose |
+|---------------------------------------------|---------|
+| `AppShell/` | Host, routes, `RemoteMount`, `MfeErrorBoundary`, federation init |
+| `HomeMFE/`, `CatalogueMFE/`, `MyAccount/`, … | Remotes |
+| `discovery-service/` | Serves `frontend-discovery.json` |
+| `AGENTS.md` | ThreadTales context + mfe-skills governance (§14) |
+| `.cursor/skills/` | Vendored skills |
+| `docs/SPEC.md` | Full specification |
 
 ## How to reproduce locally
 
 1. Install skills in your agent (see [README](../README.md)).  
-2. Prompt: *"Build React 19 Module Federation ecommerce with shell, home, and catalog MFEs."*  
-3. Compare against a run with skills disabled or without `AGENTS.md`.  
-4. Review against the eight rules in `skills/reviewing-mfe-boundaries/references/rules-core.md`.  
-5. Optionally align your layout with [mfe-with-skills](https://github.com/lucamezzalira/mfe-with-skills) (discovery manifest, thin shell, vendored skills).
+2. Clone **`ecommerce-init-implementation`** (not `main` alone if you need runnable code).  
+3. Prompt: *"Build React Module Federation ecommerce with shell, home, and catalog MFEs."* — with skills + `AGENTS.md` enabled.  
+4. Compare against a run without governance.  
+5. Review with `skills/reviewing-mfe-boundaries/references/rules-core.md` or the prompts in README **Start Here**.
 
 ## Limitations
 
-- Samples are minimal teaching repos, not production platforms.  
-- Agent and model version affect exact output.  
-- [mfe-with-skills](https://github.com/lucamezzalira/mfe-with-skills) may evolve independently; pin a tag on both repos when comparing.
+- Reference app, not a production platform.  
+- Agent and model version affect greenfield output.  
+- Pin the same branch (or tag) when comparing over time.
 
 See also: README **Why use these skills?** for the public summary table.
