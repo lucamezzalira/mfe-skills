@@ -13,7 +13,9 @@ Two skills that give your code assistant deep knowledge of micro-frontend bounda
 
 AI assistants are good at scaffolding Module Federation quickly. Without governance, they often produce **tutorial-style micro-frontends** that compile and demo well but erode team autonomy over time.
 
-We ran a controlled experiment: two agents, same brief (React 19, Module Federation, ecommerce shell + home + catalog MFEs). One built **without** these skills; one built **with** `AGENTS.md` and `reviewing-mfe-boundaries`. The samples live outside this repo — the point is what the assistant *chooses* when skills are present.
+We ran a controlled experiment: two agents, same brief (React 19, Module Federation, ecommerce shell + home + catalog MFEs). One built **without** these skills; one built **with** `AGENTS.md` and `reviewing-mfe-boundaries`.
+
+**Reference implementation (with skills):** [lucamezzalira/mfe-with-skills](https://github.com/lucamezzalira/mfe-with-skills) — ThreadTales workspace (Module Federation 2.0, runtime discovery, vendored skills + `AGENTS.md`). Clone it to see governance applied in a real repo, not just in prompts.
 
 ### Before vs after (experiment)
 
@@ -28,7 +30,7 @@ We ran a controlled experiment: two agents, same brief (React 19, Module Federat
 | **Failure handling** | `Suspense` only | Shell `ErrorBoundary` + fallback per remote |
 | **Shell events** | N/A (navigation via callbacks/globals) | `shell:alert`, `shell:modal:*` allowed — no `catalog:*` / `checkout:*` in shell |
 
-The without-skills build had **critical boundary violations** (cross-imports, shared state, fat API). The with-skills build aligned with the eight rules and stayed extensible without redeploying the shell for every catalog sub-page. Details: [docs/experiment.md](docs/experiment.md).
+The without-skills build had **critical boundary violations** (cross-imports, shared state, fat API). The with-skills build aligned with the eight rules and stayed extensible without redeploying the shell for every catalog sub-page. Details: [docs/experiment.md](docs/experiment.md) · code: [mfe-with-skills](https://github.com/lucamezzalira/mfe-with-skills).
 
 ### What you get
 
@@ -151,6 +153,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for bump checklist. **Tag a release only 
 ## Experiment (before / after)
 
 We ran two agents on the same Module Federation brief — with and without these skills. Full write-up: [docs/experiment.md](docs/experiment.md). Summary table: [Why use these skills?](#why-use-these-skills) above.
+
+| Repo | Role |
+|------|------|
+| [mfe-with-skills](https://github.com/lucamezzalira/mfe-with-skills) | **With skills** — public reference app (ThreadTales, MF 2.0, skills + rules vendored) |
+| *(local / unpublished)* | **Without skills** — same brief, tutorial-style violations (see experiment doc) |
 
 ## Start Here (15 min)
 
