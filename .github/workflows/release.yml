@@ -1,10 +1,10 @@
-name: Release (version bump)
+name: Release (skill version bump)
 
 on:
   workflow_dispatch:
     inputs:
       bump:
-        description: 'Bump type (auto = from conventional commits since last tag)'
+        description: 'Bump type (auto = conventional commits that touched skills/ since last tag)'
         required: true
         type: choice
         default: auto
@@ -78,26 +78,25 @@ jobs:
         if: inputs.dry_run != true && inputs.create_github_release == true
         env:
           GH_TOKEN: ${{ github.token }}
+          PREV: ${{ steps.bump.outputs.current_version }}
+          NEXT: ${{ steps.bump.outputs.new_version }}
+          TAG: ${{ steps.bump.outputs.tag_name }}
+          LEVEL: ${{ steps.bump.outputs.bump_level }}
+          REPO: ${{ github.repository }}
         run: |
-          PREV="${{ steps.bump.outputs.current_version }}"
-          NEXT="${{ steps.bump.outputs.new_version }}"
-          TAG="${{ steps.bump.outputs.tag_name }}"
-          LEVEL="${{ steps.bump.outputs.bump_level }}"
-          gh release create "$TAG" \
-            --title "mfe-skills $TAG" \
-            --notes "$(cat <<EOF
-## mfe-skills $TAG
-
-**Bump:** \`$PREV\` → \`$NEXT\` (${LEVEL})
-
-Install at this tag:
-
-\`\`\`bash
-git clone --depth 1 --branch $TAG https://github.com/${{ github.repository }}.git
-\`\`\`
-
-Or pin a submodule: \`git checkout $TAG\`
-
-See [README](https://github.com/${{ github.repository }}#installation) for Cursor, Claude Code, and Codex setup.
-EOF
-)"
+          {
+            echo "## mfe-skills ${TAG}"
+            echo ""
+            echo "**Bump:** \`${PREV}\` → \`${NEXT}\` (${LEVEL})"
+            echo ""
+            echo "Install at this tag:"
+            echo ""
+            echo '```bash'
+            echo "git clone --depth 1 --branch ${TAG} https://github.com/${REPO}.git"
+            echo '```'
+            echo ""
+            echo "Or pin a submodule: \`git checkout ${TAG}\`"
+            echo ""
+            echo "See [README](https://github.com/${REPO}#installation) for Cursor, Claude Code, and Codex setup."
+          } > release-notes.md
+          gh release create "${TAG}" --title "mfe-skills ${TAG}" --notes-file release-notes.md

@@ -146,7 +146,7 @@ How the agent actually picks up governance after files are on disk:
 
 **Generated files** (`.cursor/rules/`, root `AGENTS.md`) are rebuilt on push to `main` — pin tags if you vendor generated outputs too.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for bump checklist. To release: **Actions → Release (version bump)** (conventional commits since the last `v*` tag, or force patch/minor/major).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for bump checklist. **Tag a release only when `skills/` changes** — **Actions → Release (skill version bump)** (not for README/CI-only commits).
 
 ## Experiment (before / after)
 

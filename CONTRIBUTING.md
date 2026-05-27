@@ -72,12 +72,14 @@ Tag releases on GitHub (`v1.0.0`, `v1.1.0`, …) when publishing meaningful skil
 
 ### Automated release (GitHub Actions)
 
-**Actions → Release (version bump) → Run workflow**
+**Only when `skills/` changed** — docs, CI, scripts, and generated `.cursor/rules/` do not warrant a version tag on their own. Merge those to `main`; run the workflow when you are ready to ship new skill content.
+
+**Actions → Release (skill version bump) → Run workflow**
 
 | Input | Meaning |
 |-------|---------|
-| **auto** | Infer bump from [Conventional Commits](https://www.conventionalcommits.org/) since the latest `v*` tag (`feat` → minor, `fix` → patch, `BREAKING CHANGE` / `type!:` → major) |
-| **patch / minor / major** | Force that bump regardless of commit messages |
+| **auto** | Infer bump from commits that **touched `skills/`** since the latest `v*` tag (`feat` → minor, `fix` → patch, `BREAKING CHANGE` / `type!:` → major) |
+| **patch / minor / major** | Force that bump (still requires `skills/` changes since the last tag) |
 | **dry_run** | Print analysis only; no commit or tag |
 | **create_github_release** | Open a GitHub Release on the new tag |
 
@@ -89,12 +91,14 @@ npm run release:bump -- --bump minor --dry-run # preview (forced)
 npm run release:bump -- --bump patch           # apply (then commit/tag yourself)
 ```
 
-The workflow updates `package.json`, plugin manifests, SKILL `metadata.version` (major.minor), runs `build:agents`, commits, tags `vX.Y.Z`, and pushes.
+The workflow updates `package.json`, plugin manifests, SKILL `metadata.version` (major.minor), runs `npm run build`, commits, tags `vX.Y.Z`, and pushes.
+
+Use conventional prefixes on skill commits when using **auto**, e.g. `feat(skills): add routing checklist`, `fix(skills): rule 4 platform bus wording`.
 
 ## Pull request checklist
 
 - [ ] Changed only `skills/` (and docs/templates) unless running `npm run build`
 - [ ] `npm run validate` passes
 - [ ] `npm run build && npm test` passes
-- [ ] Version bumped if behaviour visible to users
+- [ ] Version bumped via release workflow only if `skills/` behaviour visible to users changed
 - [ ] README updated if install or activation changes

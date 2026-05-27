@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Semver bump from conventional commits since the latest v* tag.
+ * Semver bump for a skill release — only commits that touch skills/ since the latest v* tag.
  *
  * Usage:
  *   node scripts/bump-version.js [--bump auto|patch|minor|major] [--dry-run] [--json]
@@ -66,9 +66,14 @@ function latestTag() {
   }
 }
 
+const SKILLS_PATHSPEC = 'skills/'
+
 function commitsSince(tag) {
   const range = tag ? `${tag}..HEAD` : 'HEAD'
-  const out = sh(`git log ${range} --pretty=format:%s%n%b%n----COMMIT----`)
+  const out = execSync(
+    `git log ${range} --pretty=format:%s%n%b%n----COMMIT---- -- ${SKILLS_PATHSPEC}`,
+    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+  ).trim()
   if (!out) return []
   return out
     .split('\n----COMMIT----\n')
@@ -79,6 +84,16 @@ function commitsSince(tag) {
       const body = lines.slice(1).join('\n')
       return { subject, body }
     })
+}
+
+function skillFilesChangedSince(tag) {
+  const range = tag ? `${tag}..HEAD` : 'HEAD'
+  const out = execSync(`git diff --name-only ${range} -- ${SKILLS_PATHSPEC}`, {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim()
+  return out ? out.split('\n').filter(Boolean) : []
 }
 
 const BUMP_RANK = { none: 0, patch: 1, minor: 2, major: 3 }
@@ -180,10 +195,20 @@ function main() {
   const opts = parseArgs()
   const current = readPackageVersion()
   const tag = latestTag()
+  const skillFiles = skillFilesChangedSince(tag)
   const commits = commitsSince(tag)
 
-  if (tag && commits.length === 0) {
-    console.error(`No commits since ${tag}. Nothing to release.`)
+  if (skillFiles.length === 0) {
+    console.error(
+      tag
+        ? `No changes under ${SKILLS_PATHSPEC} since ${tag}. Release only when skill content changes.`
+        : `No changes under ${SKILLS_PATHSPEC}. Nothing to release.`,
+    )
+    process.exit(1)
+  }
+
+  if (commits.length === 0) {
+    console.error(`Files under ${SKILLS_PATHSPEC} changed but no commits touch that path (unusual).`)
     process.exit(1)
   }
 
@@ -191,12 +216,11 @@ function main() {
   let level = opts.bump === 'auto' ? suggested : opts.bump
 
   if (opts.bump === 'auto' && level === 'none') {
-    if (commits.length === 0) {
-      console.error('No commits to analyze.')
-      process.exit(1)
-    }
-    console.log('No feat/fix/breaking commits found (only chore/docs/ci). Defaulting to patch.')
-    level = 'patch'
+    console.error(
+      'Skill commits since last tag have no feat/fix/breaking conventional prefix.',
+    )
+    console.error('Use --bump patch|minor|major if the skill change still warrants a release.')
+    process.exit(1)
   }
 
   const next = bumpSemver(current, level)
@@ -209,6 +233,7 @@ function main() {
     tag: tagName,
     sinceTag: tag,
     commitCount: commits.length,
+    skillFiles,
     suggested: opts.bump === 'auto' ? suggested : null,
     commits: details,
     dryRun: opts.dryRun,
@@ -217,9 +242,10 @@ function main() {
   if (opts.json) {
     console.log(JSON.stringify(report, null, 2))
   } else {
-    console.log('Version bump')
+    console.log('Skill release bump')
     console.log(`  Since tag:     ${tag ?? '(none — all history)'}`)
-    console.log(`  Commits:       ${commits.length}`)
+    console.log(`  Skill files:   ${skillFiles.length} changed under ${SKILLS_PATHSPEC}`)
+    console.log(`  Commits:       ${commits.length} (touching ${SKILLS_PATHSPEC} only)`)
     console.log(`  Suggested:     ${opts.bump === 'auto' ? suggested : '(manual)'}`)
     console.log(`  Bump level:    ${level}`)
     console.log(`  ${current} → ${next}`)
