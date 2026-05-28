@@ -134,15 +134,18 @@ Merge [AGENTS.md](AGENTS.md) into your project `AGENTS.md` (do not overwrite exi
 
 ### GitHub Copilot
 
-Copilot does not currently consume this repo's `SKILL.md` format directly.  
-Use repository instructions and always-on context instead:
+Copilot uses repository instruction files. Use both:
+
+- `.github/copilot-instructions.md` (Copilot-native baseline)
+- `AGENTS.md` (canonical cross-agent governance baseline)
 
 ```bash
 mkdir -p .github
-cp /tmp/mfe-skills/AGENTS.md .github/copilot-instructions.md
+cp /tmp/mfe-skills/.github/copilot-instructions.md .github/copilot-instructions.md
+cp /tmp/mfe-skills/AGENTS.md AGENTS.md
 ```
 
-Then edit `.github/copilot-instructions.md` with your project-specific ownership/toolchain details (same guidance as `templates/AGENTS.project-snippet.md`).
+Then edit your project `AGENTS.md` with ownership/toolchain details (same guidance as `templates/AGENTS.project-snippet.md`) and keep `.github/copilot-instructions.md` concise.
 
 ---
 
@@ -165,7 +168,7 @@ How the agent actually picks up governance after files are on disk:
 | **Cursor** | **Agent decides** from each skill’s `description` in YAML frontmatter, or invoke **`/understanding-mfe-architecture`** / **`/reviewing-mfe-boundaries`**. Optional: copy `.cursor/rules/*.mdc` — rules use **Agent decides** mode per file. Check **Settings → Rules** to see loaded rules/skills. |
 | **Claude Code** | Auto when relevant after plugin install, or **`/mfe-skills:understanding-mfe-architecture`** / **`/mfe-skills:reviewing-mfe-boundaries`**. |
 | **Codex** | **`AGENTS.md`** loaded every session; skills in `.codex/skills/` when the tool supports them. |
-| **GitHub Copilot** | Uses `.github/copilot-instructions.md` as repository-level guidance. Paste boundary prompts in Copilot Chat and ask for rule-cited reviews. |
+| **GitHub Copilot** | Uses `.github/copilot-instructions.md` as repository-level guidance; also benefits from `AGENTS.md` in supported Copilot agent flows. Paste boundary prompts in Copilot Chat and ask for rule-cited reviews. |
 | **Antigravity** | Skills under `.agents/skills/` discovered per Antigravity conventions; combine with project `AGENTS.md`. |
 
 **Prompt to verify:** *Review this shell integration against the eight MFE boundary rules and cite rule numbers.*
@@ -280,7 +283,7 @@ On `ecommerce-init-implementation`, use step 3 to verify; extend the checklist w
 |-----------|----------------|
 | **Claude Code** | `/plugin marketplace update mfe-skills` then `/reload-plugins` |
 | **Cursor / Codex / Antigravity** | Re-run install `cp` from a fresh clone or bump git submodule tag |
-| **GitHub Copilot** | Re-copy/merge latest `AGENTS.md` into `.github/copilot-instructions.md` |
+| **GitHub Copilot** | Re-copy latest `.github/copilot-instructions.md` and re-merge latest `AGENTS.md` |
 | **Cursor rules** | Re-copy `.cursor/rules/` from latest `main` or run `npm run build` in this repo |
 | **AGENTS.md** | Re-merge generated [AGENTS.md](AGENTS.md) from this repo |
 
