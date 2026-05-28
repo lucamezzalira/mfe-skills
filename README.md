@@ -50,6 +50,8 @@ Pair the skills with your project’s `CLAUDE.md` / `AGENTS.md` (team ownership,
 
 **Companion skill:** [micro-frontend-canvas](https://github.com/lucamezzalira/mfe-canvas) — Micro-Frontend Canvas worksheets and facilitation (not included in this repo).
 
+**Optional governance template:** [docs/governance.md](docs/governance.md) — policy YAML + `ts-arch`/`jest` fitness-function starter for teams that want CI enforcement.
+
 ## Project context is essential (`AGENTS.md`)
 
 Skills teach **generic** MFE governance. Your repo must say **which shell, which MFEs, which teams, which toolchain**.
@@ -156,6 +158,10 @@ How the agent actually picks up governance after files are on disk:
 **Generated files** (`.cursor/rules/`, root `AGENTS.md`) are rebuilt on push to `main` — pin tags if you vendor generated outputs too.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for bump checklist. **Tag a release only when `skills/` changes** — **Actions → Release (skill version bump)** (not for README/CI-only commits).
+
+## Optional governance template
+
+If your organisation wants executable boundary governance (policy + allowlists + architecture tests), use the template in [`governance-template/`](governance-template/) and follow [docs/governance.md](docs/governance.md).
 
 ## Experiment (before / after)
 

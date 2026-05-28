@@ -1,0 +1,20 @@
+version: 1
+
+shared_allowed:
+  folders:
+    - shared/contracts/**
+    - shared/platform/**
+    - shared/ui-primitives/**
+  packages:
+    - "@company/mfe-contracts"
+    - "@company/platform-events"
+
+forbidden_import_patterns:
+  - "AppShell/** -> CatalogueMFE/**"
+  - "AppShell/** -> MyAccount/**"
+  - "CatalogueMFE/** -> MyAccount/**"
+  - "** -> ../*/src/**"
+
+notes:
+  - Keep this file explicit. Avoid broad wildcards like shared/** without ownership.
+  - Every new shared area should have an owner team and a clear purpose.

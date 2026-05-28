@@ -1,0 +1,13 @@
+version: 1
+exceptions: []
+
+# Example:
+# exceptions:
+#   - id: EX-2026-001
+#     rule: no_cross_mfe_imports
+#     path: "CatalogueMFE/src/legacy/adapter.ts"
+#     reason: "Temporary adapter during strangler migration"
+#     owner: "team-catalogue"
+#     approved_by: "architecture-board"
+#     created_at: "2026-05-28"
+#     expires_at: "2026-08-31"

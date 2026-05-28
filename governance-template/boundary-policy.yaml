@@ -1,0 +1,34 @@
+version: 1
+name: mfe-boundary-policy
+
+ci_states:
+  pass: PASS
+  pass_with_warnings: PASS_WITH_WARNINGS
+  pass_review_required: PASS_REVIEW_REQUIRED
+  fail: FAIL
+
+severity:
+  critical:
+    ci: fail
+    merge: blocked
+  high:
+    ci: pass_review_required
+    merge: requires_label("arch-approved")
+  medium:
+    ci: pass_with_warnings
+    merge: allowed
+  low:
+    ci: pass_with_warnings
+    merge: allowed
+
+rules:
+  no_cross_mfe_imports: critical
+  shared_store_across_boundaries: critical
+  shared_allowlist_only: critical
+  shell_domain_event_handling: critical
+  version_pinned_remote_loading: high
+  feature_flags_outside_mfe_scope: high
+  missing_boundary_fitness_tests: high
+  edge_compute_without_latency_or_rollout_case: medium
+  missing_route_ownership_for_ssr: medium
+  docs_or_metadata_drift: low
