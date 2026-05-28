@@ -52,6 +52,16 @@ Pair the skills with your project’s `CLAUDE.md` / `AGENTS.md` (team ownership,
 
 **Optional governance template:** [docs/governance.md](docs/governance.md) — policy YAML + `ts-arch`/`jest` fitness-function starter for teams that want CI enforcement.
 
+## Advanced governance extensions
+
+Beyond the eight core boundary rules, the skills now guide these advanced topics:
+
+- **Feature flags scope** — keep behavioural flags inside the owning MFE; avoid shell/runtime fine-grained orchestration across teams
+- **Edge strategy** — use edge compute for routing value (canary, strangler, traffic steering), not as a default rendering choice
+- **SSR ownership model** — split by route/domain; teams own runtime responsibilities for their page slices
+- **SSR browser composition** — RSC / Islands still require coarse boundaries to avoid shell coordination complexity
+- **Fitness functions** — enforce boundaries continuously in monorepos (for example `ts-arch` + `jest`) with policy levels (`critical` fail, `high` review-required, `medium/low` warn)
+
 ## Project context is essential (`AGENTS.md`)
 
 Skills teach **generic** MFE governance. Your repo must say **which shell, which MFEs, which teams, which toolchain**.
