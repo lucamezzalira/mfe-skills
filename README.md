@@ -294,7 +294,7 @@ Activates when you review or generate code that crosses a team deployment bounda
 
 ```
 .claude-plugin/
-  marketplace.json                     # Claude Code marketplace catalog
+  marketplace.json                     # Claude Code plugin catalog metadata
   plugin.json
 .cursor-plugin/
   plugin.json                          # Cursor plugin manifest
@@ -331,14 +331,6 @@ CONTRIBUTING.md
 ```
 
 `skills/` is the source of truth. On push to `main`, CI runs `npm run build` and commits `.cursor/rules/` + `AGENTS.md`.
-
-## Publishing to marketplaces
-
-| Platform | Hosted where? | What you need |
-|----------|----------------|---------------|
-| **Claude Code** | This GitHub repo | `.claude-plugin/marketplace.json` + `plugin.json`. Users: `/plugin marketplace add lucamezzalira/mfe-skills`. |
-| **Cursor** | This GitHub repo | `.cursor-plugin/plugin.json` + `skills/` + generated `.cursor/rules/`. [Submit for review](https://cursor.com/marketplace/publish) when ready (MIT). |
-| **Codex / Antigravity** | No central marketplace | Copy `skills/` + merge `AGENTS.md`. |
 
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
 
