@@ -31,9 +31,9 @@ Use **`ecommerce-init-implementation`** for Start Here and code review; use **`m
 | **Cross-MFE imports** | Shell imports `catalogMfe/productUtils` | No imports across remotes; each MFE exposes only its app entry |
 | **Mount contract** | `shellUser`, `cart`, `formatPrice`, `onNavigate` | `userId` + `platformBus` (chrome only) |
 | **Shared state** | `window.__SHOP_CART__` global singleton | No shared store; URL + platform events |
-| **Routing** | Shell knows home + catalog pages | Shell loads **first URL segment only** from `routes.json`; MFE owns `/catalog/product/:id` |
-| **Adding a route/MFE** | Edit shell `App.tsx` | Add a row to `routes.json` + `remotes.json` (no shell code for internal pages) |
-| **Remote URLs** | Hard-coded in webpack config | Runtime `remotes.json` |
+| **Routing** | Shell knows home + catalog pages | Shell loads first URL segment only (manifest/discovery); MFE owns deeper paths like `/catalog/product/:id` |
+| **Adding a route/MFE** | Edit shell `App.tsx` | Add entry in manifest/discovery config (no shell domain-page code changes) |
+| **Remote URLs** | Hard-coded in webpack config | Runtime discovery (`remotes.json` or `frontend-discovery.json`) |
 | **Failure handling** | `Suspense` only | Shell `ErrorBoundary` + fallback per remote |
 | **Shell events** | N/A (navigation via callbacks/globals) | `shell:alert`, `shell:modal:*` allowed — no `catalog:*` / `checkout:*` in shell |
 
@@ -142,10 +142,11 @@ Copilot uses repository instruction files. Use both:
 ```bash
 mkdir -p .github
 cp /tmp/mfe-skills/.github/copilot-instructions.md .github/copilot-instructions.md
-cp /tmp/mfe-skills/AGENTS.md AGENTS.md
+# Merge (do not overwrite) the governance summary into your existing AGENTS.md
+cp /tmp/mfe-skills/AGENTS.md /tmp/mfe-skills-AGENTS.md
 ```
 
-Then edit your project `AGENTS.md` with ownership/toolchain details (same guidance as `templates/AGENTS.project-snippet.md`) and keep `.github/copilot-instructions.md` concise.
+Then merge `/tmp/mfe-skills-AGENTS.md` into your project `AGENTS.md` (do not overwrite existing project context), add ownership/toolchain details (same guidance as `templates/AGENTS.project-snippet.md`), and keep `.github/copilot-instructions.md` concise.
 
 ---
 
@@ -334,13 +335,12 @@ skills/                                # Source of truth — install these into 
       rules-toolchain.md               # Framework-specific code patterns
       routing-ownership.md             # Shell first URL segment; MFE sub-routes; platform events
       remediation.md                   # Fix patterns for every rule violation
-rules/
-  mfe-core-concepts.mdc                # Generated Cursor rules (plugin + optional project copy)
-  mfe-boundary-health.mdc
 AGENTS.md                              # Generated Codex / always-on summary (npm run build)
 templates/                             # Project AGENTS snippet, routes.json, remotes.json
 docs/
+  governance.md                        # Optional policy + fitness-function setup
   experiment.md                        # Before/after agent experiment
+governance-template/                   # Optional policy/allowlist/exceptions + ts-arch/jest starter
 scripts/
   build-cursor.js                      # → .cursor/rules/*.mdc (split)
   build-agents.js                      # → AGENTS.md
