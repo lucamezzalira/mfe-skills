@@ -54,7 +54,7 @@ Pair the skills with your project’s `CLAUDE.md` / `AGENTS.md` (team ownership,
 
 ## Advanced governance extensions
 
-Beyond the eight core boundary rules, the skills now guide these advanced topics:
+Beyond the eight core boundary rules, the skills also guide these advanced topics:
 
 - **Feature flags scope** — keep behavioural flags inside the owning MFE; avoid shell/runtime fine-grained orchestration across teams
 - **Edge strategy** — use edge compute for routing value (canary, strangler, traffic steering), not as a default rendering choice
