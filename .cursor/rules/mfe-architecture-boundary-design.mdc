@@ -32,7 +32,7 @@ Adapted from microservices architecture. When reviewing or generating architectu
 
 **1. Modelled around business domains** — identify boundaries by user journey steps (checkout, search, profile) or business capabilities, not by technical framework types or component categories. DDD event storming is the recommended technique for identifying subdomains.
 
-**2. Culture of automation** — a poor automation culture makes micro-frontends a nightmare. Every independent unit needs solid CI/CD pipelines with a fast feedback loop. Automation also enforces guardrails: bundle size limits, dependency alignment, design system version enforcement.
+**2. Culture of automation** — a poor automation culture makes micro-frontends a nightmare. Every independent unit needs solid CI/CD pipelines with a fast feedback loop. Automation also enforces guardrails: bundle size limits, dependency alignment, design system version enforcement, and architecture fitness functions (for example no cross-MFE imports except explicit shared allowlists).
 
 **3. Hide implementation details** — define the API contract upfront. Internal frameworks, data fetching strategies, and code structure are hidden behind it. Teams change their internals freely without affecting others, as long as the contract is respected. This is API-first applied to the frontend.
 
@@ -99,6 +99,17 @@ Unlike components, micro-frontends are not designed for high reusability or comp
 
 **4. More coarse-grained than a component**
 Micro-frontends are highly specialised in their functionality. Fine-grained micro-frontends result in higher coupling, more external dependencies, and context leakage toward their containers. Avoid splitting to the point where the shell must orchestrate business logic to glue the pieces together.
+
+---
+
+## Additional boundary guardrails
+
+Use these to avoid common distributed-monolith traps:
+
+- **Feature flags stay inside MFEs**: behavioural rollout logic should live in the owning MFE. Cross-MFE runtime flag orchestration in the shell often reintroduces deployment coordination.
+- **Edge is a strategy, not a default**: edge compute is useful for traffic steering, canary routing, and strangler migration. It is not automatically a latency win when APIs and stateful systems remain in a single region.
+- **SSR boundaries remain route/domain based**: even with SSR + browser composition (RSC, Astro Islands), ownership should still follow user journeys and bounded contexts.
+- **Fitness functions in monorepos**: enforce boundaries continuously using architecture tests (for example `ts-arch` + `jest`) and explicit shared-area allowlists.
 
 ---
 

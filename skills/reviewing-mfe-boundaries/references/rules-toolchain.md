@@ -271,3 +271,84 @@ registerApplication({ name: 'checkout', app: () => import('checkout/main'), acti
 ```
 
 ---
+
+## Governance extension — feature flags scope
+
+Keep behavioural flags inside the owning MFE. Use shell/edge flags only for platform-level traffic steering.
+
+```javascript
+// ✗ Shell orchestrates domain behaviour across remotes
+if (flags.newPricingFlow) {
+  mountRemote('catalog-v2')
+} else {
+  mountRemote('catalog-v1')
+}
+// Requires cross-team rollout coordination
+
+// ✓ Catalog MFE decides feature behaviour internally
+// catalog/src/featureFlags.ts
+export const isNewPricingFlowEnabled = () => getFlag('catalog.newPricingFlow')
+```
+
+---
+
+## Governance extension — edge strategy
+
+Use edge for routing and rollout strategies when it adds measurable value.
+
+```javascript
+// ✓ Edge compute for canary + strangler routing (platform concern)
+if (kv.get(`catalog_canary_${userId}`) === 'v2') {
+  return proxyTo('catalog-v2')
+}
+return proxyTo('catalog-v1')
+
+// ✗ Edge rendering assumed beneficial while APIs remain in one region
+// (adds complexity without latency/availability benefit)
+```
+
+---
+
+## Governance extension — SSR ownership and composition
+
+```text
+✓ Route/domain ownership:
+- /catalog/* owned by team-catalog
+- /checkout/* owned by team-checkout
+- each team owns SSR runtime for its routes
+
+✗ Central SSR layer deciding domain logic for all teams
+```
+
+RSC / Islands still need coarse boundaries; avoid fragmenting one domain into many independently coordinated units.
+
+---
+
+## Governance extension — fitness functions in monorepos
+
+```javascript
+// ts-arch + jest example (conceptual)
+await expect(
+  filesOfProject()
+    .inFolder('CatalogueMFE/src')
+    .shouldNot()
+    .dependOnFiles()
+    .inFolder('MyAccount/src'),
+).toPassAsync()
+
+// Shared allowlist check
+await expect(
+  filesOfProject()
+    .inFolder('AppShell/src')
+    .shouldNot()
+    .dependOnFiles()
+    .inFolder('shared/experimental'),
+).toPassAsync()
+```
+
+Policy recommendation:
+- `critical`: fail CI
+- `high`: review required (non-blocking)
+- `medium/low`: warnings
+
+---

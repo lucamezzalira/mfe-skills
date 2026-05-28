@@ -420,3 +420,46 @@ function Shell() {
 
 **When horizontal split is genuinely needed**: if the micro-frontends represent different business domains that happen to share a view, the split is correct. The fix is not to merge them but to ensure communication goes through events (Rule 4) and each one fetches its own data (Rule 2). The container should only pass the minimal shared context (a page ID, a session token).
 
+---
+
+## Governance extension remediation patterns
+
+### Feature flags in shell/runtime orchestration
+
+**Before**: shell toggles domain behaviour for multiple remotes.
+
+**After**:
+1. Move behavioural flags into each owning MFE namespace (`catalog.*`, `checkout.*`)
+2. Keep shell flags platform-only (navigation chrome, global UX)
+3. Use edge/shell only for coarse traffic steering (canary, strangler)
+
+### Edge adoption without clear value
+
+**Before**: edge rendering introduced by default while APIs remain in one region.
+
+**After**:
+1. Define expected benefit (latency, rollout control, migration safety)
+2. If no measurable gain, remove edge rendering layer
+3. Keep only edge routing for canary/strangler when needed
+
+### SSR ownership ambiguity
+
+**Before**: central SSR layer owns route logic for many domains.
+
+**After**:
+1. Assign each route slice to one team (`/catalog/*`, `/checkout/*`)
+2. Make runtime ownership explicit (compute + optional cache)
+3. Keep platform ingress generic (CDN/gateway/proxy), not domain-coupled
+
+### Missing fitness functions in monorepos
+
+**Before**: cross-MFE imports discovered late in PR review.
+
+**After**:
+1. Add architecture tests (`ts-arch` + `jest` or equivalent)
+2. Enforce explicit shared-area allowlist (`shared/contracts`, `shared/platform`, etc.)
+3. Apply policy levels in CI:
+   - critical fail
+   - high review-required
+   - medium/low warnings
+

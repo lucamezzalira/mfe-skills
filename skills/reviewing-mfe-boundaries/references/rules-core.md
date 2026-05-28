@@ -493,5 +493,54 @@ One team owns a micro-frontend across its full lifecycle: design, development, d
 
 ---
 
+## Additional governance extensions
+
+These extensions operationalise the eight rules in modern delivery setups.
+
+### Feature flags scope (rules 2, 5, 7)
+
+Feature flags for behaviour should live inside the owning MFE. Avoid shell-level fine-grained orchestration that switches MFE behaviour at runtime across teams.
+
+**Violation signals**:
+- Shell toggles domain-level behaviour of remotes (`catalog`, `checkout`) via global flags
+- Feature rollout requires coordinated deploys across multiple MFEs
+
+### Edge strategy (rules 5, 7)
+
+Edge compute is useful when it provides measurable value: traffic steering, canary routing, and strangler migration. Edge rendering alone is not automatically beneficial when APIs and stateful systems remain in-region.
+
+**Violation signals**:
+- Edge rendering adopted without latency/availability gain evidence
+- Edge layer introduces complex MFE version logic without ownership clarity
+
+### SSR ownership model (rules 1, 8)
+
+For SSR architectures, ownership is usually URL/domain based. Teams should own their route slices and runtime responsibilities (compute plus optional cache).
+
+**Violation signals**:
+- Shared SSR layer owns domain decisions for multiple teams
+- Route/domain ownership cannot be mapped to a single accountable team
+
+### Browser composition in SSR (rules 2, 7)
+
+RSC / Islands patterns still require coarse domain boundaries. Composition in the browser does not justify fragmenting domains into fine-grained MFEs.
+
+**Violation signals**:
+- Fragment-level decomposition causes shell orchestration logic
+- Multiple small units in one view with high coordination overhead
+
+### Fitness functions (rules 3, 4)
+
+In monorepos, encode boundary rules as executable architecture tests (for example `ts-arch` + `jest`, dependency-cruiser, ESLint boundaries, Nx rules).
+
+**Violation signals**:
+- No automated checks for cross-MFE imports
+- Shared area has no explicit allowlist (wild-west `shared/**`)
+- Boundary violations are detected only during late review
+
+Recommended policy model: `critical` fail, `high` review-required, `medium/low` warn.
+
+---
+
 
 ---

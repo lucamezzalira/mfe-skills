@@ -112,6 +112,24 @@ For code-level patterns and violation signals, load the **reviewing-mfe-boundari
 - Standard approach; straightforward to implement
 - Works with both vertical and horizontal splits
 
+### SSR ownership model
+
+For SSR-first architectures, boundary ownership is still domain and URL based:
+
+- Entry routing is usually handled by CDN + API gateway / reverse proxy layers
+- Each team owns one or more route slices and the runtime for those slices
+- Team ownership includes compute and, when needed, in-memory cache strategy
+
+The infrastructure can be shared at the platform level, but route/domain ownership remains with the team that owns the micro-frontend capability.
+
+### Browser composition inside SSR (RSC / Islands)
+
+SSR does not remove browser-side composition concerns. Frameworks like React Server Components or Astro Islands may append fragments in the browser after initial render, but boundary quality still depends on granularity:
+
+- Keep coarse-grained domain boundaries
+- Split by domain, route, or user journey step
+- Avoid fine-grained fragmentation that recreates container coordination complexity
+
 ---
 
 ## Decision 4 — Communicate: how do micro-frontends exchange data?
@@ -137,6 +155,16 @@ When the user navigates from one micro-frontend's domain to another, data must c
 **Query strings / URL parameters**: for ephemeral data such as a selected product ID. The receiving micro-frontend reads the ID from the URL and fetches full details from its own API. Do not use query strings for sensitive data (passwords, user IDs).
 
 **The principle**: pass the minimum reference needed (an ID, a token), not the full domain object. The receiving micro-frontend is responsible for fetching its own data.
+
+---
+
+## Operational guardrails (cross-cutting)
+
+These are design governance constraints that apply across the four decisions:
+
+- **Feature flags**: keep behavioural flags inside the owning MFE. Do not use shell/runtime flag orchestration to swap MFEs at fine granularity unless it is an explicit platform rollout mechanism.
+- **Edge compute**: use when it adds measurable value (traffic steering, canary, strangler routing). Edge rendering alone is not automatically beneficial if data/API latency remains in-region.
+- **Fitness functions**: in monorepos, encode boundary checks as architecture tests (for example `ts-arch` + `jest`) to prevent cross-MFE imports and enforce explicit shared allowlists.
 
 ---
 

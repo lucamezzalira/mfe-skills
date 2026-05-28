@@ -30,3 +30,15 @@ If any answer is no, the boundary needs to be revisited before implementation be
 | 6 — Isolate failure | Fallback in shell for every remote mount | No fallback at mount point in the shell |
 | 7 — Coarse-grained | Max 3 MFEs per view; shell first segment via manifest; MFE hardcodes sub-routes | Shell owning `/catalog/product/:id`; shell hard-coded MFE routes; shell `catalog:*` handlers |
 | 8 — Single-team ownership | One team owns full lifecycle | Multiple teams in CODEOWNERS for same MFE |
+
+## Additional governance extensions
+
+These complement (not replace) the eight boundary rules:
+
+| Extension | Principle | Primary violation signal |
+|---|---|---|
+| Feature flags scope | Flags stay inside owning MFE for behaviour rollout | Shell/runtime toggles selecting fine-grained MFE behaviour |
+| Edge strategy | Use edge when it improves routing/rollout outcomes | Edge rendering adopted with no latency or rollout benefit |
+| SSR ownership | Split by route/domain; teams own compute for their pages | SSR infra centralised while domain ownership is ambiguous |
+| Browser composition in SSR | RSC/Islands still require coarse boundaries | Fragment-level decomposition causing shell coordination logic |
+| Fitness functions | Enforce boundaries continuously in CI | No tests for cross-MFE imports or shared allowlist drift |
