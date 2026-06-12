@@ -352,27 +352,50 @@ CONTRIBUTING.md
 
 `skills/` is the source of truth. On push to `main`, CI runs `npm run build` and commits `.cursor/rules/` + `AGENTS.md`.
 
-Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
-
 ## Pairing with CLAUDE.md / AGENTS.md
 
 Use [templates/AGENTS.project-snippet.md](templates/AGENTS.project-snippet.md) as the starting point. The generated [AGENTS.md](AGENTS.md) in this repo is the **portable rules summary**; your project file is the **map of your system**. Both together produce useful reviews.
 
-## Resources
+## Contributing
 
-- Book: [Building Micro-Frontends](https://www.buildingmicrofrontends.com/book)
-  A practical guide to designing, delivering, and governing micro-frontends at scale.
-- Podcast: [Micro-frontends podcast playlist](https://www.youtube.com/playlist?list=PLQCXBpGR5h_jHo1xbShq3EWOKw38UPCEZ)
-  Conversations with practitioners about architecture trade-offs, team topology, and real-world adoption.
-- Newsletter: [Building Micro-Frontends newsletter](https://www.buildingmicrofrontends.com)
-  Ongoing insights, patterns, and field notes from enterprise micro-frontend implementations.
+Your feedback makes these skills better for everyone. See [CONTRIBUTING.md](CONTRIBUTING.md) for validation, release workflow, and PR conventions.
 
-## Author
+- **Found a problem?** Open an issue
+- **Have a suggestion?** Open an issue or PR
+- **Used it with your team?** Share your experience in Discussions
+- **Adapted it for your context?** We'd love to see how
 
-Luca Mezzalira, luca@50cents.media
-
-Based on *Building Micro-Frontends* (O'Reilly). Canvas facilitation: [micro-frontend-canvas](https://github.com/lucamezzalira/mfe-canvas).
+---
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2026 Luca Mezzalira.
+This work is licensed under the [MIT License](LICENSE).
+
+You are free to use, share, and adapt this material for any purpose, including commercial use, provided the license and copyright notice are included.
+
+**Attribution**: © Luca Mezzalira. Part of the mfe-skills governance toolkit for micro-frontends.
+
+---
+
+## Resources
+
+- [Building Micro-Frontends (O'Reilly)](https://www.buildingmicrofrontends.com) — Comprehensive guide to micro-frontend architecture
+- [Micro-Frontend Canvas](https://github.com/lucamezzalira/mfe-canvas) — Canvas worksheets and facilitation for boundary design
+- [buildingmicrofrontends.com](https://www.buildingmicrofrontends.com) — Newsletter, articles, case studies, and community resources
+
+---
+
+## Author
+
+**Luca Mezzalira** — Solutions architect specialising in frontend architectures, distributed systems, and cloud infrastructure. Author of Building Micro-Frontends (O'Reilly). Over 20 years in the industry and a decade helping teams worldwide adopting micro-frontends architecture.
+
+- [LinkedIn](https://linkedin.com/in/lucamezzalira)
+- [buildingmicrofrontends.com](https://www.buildingmicrofrontends.com) — newsletter, articles, and resources
+
+---
+
+## Support
+
+If you find mfe-skills useful, you can [buy me a coffee](https://www.buymeacoffee.com/mezzalab).
+
+<a href="https://www.buymeacoffee.com/mezzalab"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" width="200"></a>
