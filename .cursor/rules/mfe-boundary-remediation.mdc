@@ -19,7 +19,7 @@ If a unit named or behaving as a UI component is being integrated as a micro-fro
 
 **If it is truly a business capability** masquerading as a component: rename it to reflect the domain, assign a single team to own it, and ensure it fetches its own data rather than receiving domain objects as props.
 
-**If the boundary is ambiguous**: run the boundary health check from `mfe-core-concepts/references/rules.md`. If it fails two or more tests, it is in the wrong category.
+**If the boundary is ambiguous**: run the boundary health check from `understanding-mfe-architecture/references/rules.md`. If it fails two or more tests, it is in the wrong category.
 
 ---
 

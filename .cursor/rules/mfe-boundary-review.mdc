@@ -5,7 +5,7 @@ alwaysApply: false
 
 # MFE boundary health
 
-Reviews and generates micro-frontend code against the eight boundary rules from *Building Micro-Frontends* (O'Reilly). All rules are tool-agnostic. Full rule definitions, violation signals, and code-checkable patterns are in `references/rules.md` — load it when you need the detail for a specific rule.
+Reviews and generates micro-frontend code against the eight boundary rules from *Building Micro-Frontends* (O'Reilly). All rules are tool-agnostic. Full rule definitions, violation signals, and code-checkable patterns are in `references/rules-core.md` — load it when you need the detail for a specific rule.
 
 **On every activation, apply this summary table directly — no file load needed:**
 
