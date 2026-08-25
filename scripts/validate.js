@@ -37,6 +37,40 @@ const US_UK = [
 
 console.log('validate\n--- skills ---')
 
+/** Parse the YAML frontmatter block into { field: value }. Handles quoted scalars and `>` / `|` block scalars. */
+function parseFrontmatter(raw) {
+  const block = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1]
+  if (block === undefined) return {}
+  const fields = {}
+  const lines = block.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^([A-Za-z0-9_-]+):\s*(.*)$/)
+    if (!m) continue
+    let [, key, value] = m
+    if (/^[>|][-+]?$/.test(value)) {
+      const parts = []
+      while (i + 1 < lines.length && /^\s+\S/.test(lines[i + 1])) parts.push(lines[++i].trim())
+      value = parts.join(' ')
+    }
+    fields[key] = value.replace(/^(["'])(.*)\1$/, '$2')
+  }
+  return fields
+}
+
+/**
+ * Check that `references/x.md` and `<skill>/references/x.md` links resolve, whether written
+ * as inline code or as markdown link targets. `#anchors` are ignored; globs (`*`) are skipped.
+ */
+function checkReferences(skillName, file, body, skillDir) {
+  const pattern = /(?:`|\]\()(?:([a-z0-9-]+)\/)?references\/([^`)#*]+?)(?:#[^`)]*)?[`)]/g
+  for (const [, otherSkill, ref] of body.matchAll(pattern)) {
+    const base = otherSkill ? path.join(skillsDir, otherSkill) : skillDir
+    if (!fs.existsSync(path.join(base, 'references', ref))) {
+      error(`${skillName}/${file}: broken reference ${otherSkill ? otherSkill + '/' : ''}references/${ref}`)
+    }
+  }
+}
+
 for (const skillName of fs.readdirSync(skillsDir)) {
   const skillDir = path.join(skillsDir, skillName)
   if (!fs.statSync(skillDir).isDirectory()) continue
@@ -47,12 +81,30 @@ for (const skillName of fs.readdirSync(skillsDir)) {
     continue
   }
 
-  const raw = fs.readFileSync(skillMd, 'utf8')
+  const raw = fs.readFileSync(skillMd, 'utf8').replace(/^\uFEFF/, '')
   if (!raw.startsWith('---')) error(`${skillName}: SKILL.md missing YAML frontmatter`)
 
+  const fm = parseFrontmatter(raw)
   for (const field of ['name', 'description', 'license']) {
-    if (!new RegExp(`^${field}:`, 'm').test(raw)) error(`${skillName}: missing frontmatter ${field}`)
+    if (!(field in fm)) error(`${skillName}: missing frontmatter ${field}`)
   }
+
+  // Agent Skills spec: name is 1-64 chars, lowercase a-z0-9 with single hyphens, and matches the folder
+  const { name, description } = fm
+  if (name !== undefined) {
+    if (name.length > 64 || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) {
+      error(`${skillName}: name "${name}" must be 1-64 chars, lowercase a-z0-9 with single hyphens`)
+    }
+    if (name !== skillName) error(`${skillName}: frontmatter name "${name}" does not match folder name`)
+  }
+
+  // Agent Skills spec: description is non-empty and at most 1024 chars
+  if (description !== undefined) {
+    if (description.length === 0) error(`${skillName}: description must be non-empty`)
+    else if (description.length > 1024) error(`${skillName}: description is ${description.length} chars (max 1024)`)
+  }
+
+  checkReferences(skillName, 'SKILL.md', raw, skillDir)
 
   if (raw.includes('references/canvas.md')) {
     error(`${skillName}: references canvas.md — use canvas-pointer.md`)
@@ -71,12 +123,7 @@ for (const skillName of fs.readdirSync(skillsDir)) {
         pattern.lastIndex = 0
       }
 
-      const refs = [...body.matchAll(/`references\/([^`]+)`/g)].map((m) => m[1])
-      for (const ref of refs) {
-        if (!fs.existsSync(path.join(refsDir, ref))) {
-          error(`${skillName}/${file}: broken reference references/${ref}`)
-        }
-      }
+      checkReferences(skillName, file, body, skillDir)
     }
   }
 

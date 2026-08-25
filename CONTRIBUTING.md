@@ -69,9 +69,11 @@ Squash merge only (recommended): **Settings → General → Pull Requests → Al
 | Check | Severity |
 |-------|----------|
 | Each skill has `SKILL.md` with `name`, `description`, `license` | Error |
+| `name` is 1–64 chars, lowercase `a-z0-9` with single hyphens, and matches the folder name | Error |
+| `description` is non-empty and at most 1024 chars | Error |
 | No `references/canvas.md` (use `canvas-pointer.md`) | Error |
 | No `check-boundary.py` references | Error |
-| Internal `references/...` links resolve | Error |
+| `references/...` and cross-skill `<skill>/references/...` links resolve (inline code or markdown links, in `SKILL.md` and reference files) | Error |
 | US spellings in skills (warn → prefer UK) | Warning |
 | Plugin manifest version matches `package.json` | Warning |
 
@@ -86,7 +88,7 @@ Squash merge only (recommended): **Settings → General → Pull Requests → Al
 
 ### Future validation (proposed)
 
-- JSON schema for `SKILL.md` frontmatter (`name` matches folder)  
+- JSON schema for `SKILL.md` frontmatter (`metadata` value types, `compatibility` length, unknown keys)  
 - Max size per generated `.mdc` file  
 - Diff guard: PR fails if `skills/**` changed but `.cursor/rules/` not rebuilt  
 - Link checker for external URLs in README  
