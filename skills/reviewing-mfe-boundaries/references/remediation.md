@@ -1,5 +1,16 @@
 # Remediation patterns
 
+## Contents
+
+- Rule 1 — Reframing a component as a micro-frontend (or vice versa)
+- Rule 2 — Reducing an oversized API surface
+- Rule 3 — Removing a cross-boundary import
+- Rule 4 — Replacing shared state with events
+- Rule 5 — Decoupling deployments
+- Rule 6 — Adding graceful fallbacks
+- Rule 7 — Consolidating a granular horizontal split
+- Governance extension remediation patterns
+
 **Version**: 1.2 | **Skill**: reviewing-mfe-boundaries | **Source**: *Building Micro-Frontends* (O'Reilly)
 
 Each section maps to one of the eight boundary rules.

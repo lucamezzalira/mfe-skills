@@ -1,5 +1,14 @@
 # Micro-frontends decisions framework
 
+## Contents
+
+- Decision 1 — Define: horizontal or vertical split?
+- Decision 2 — Compose: how does the shell assemble micro-frontends?
+- Decision 3 — Route: how does the application direct users between views?
+- Decision 4 — Communicate: how do micro-frontends exchange data?
+- Operational guardrails (cross-cutting)
+- Decisions framework summary
+
 **Version**: 1.2 | **Skill**: understanding-mfe-architecture | **Source**: *Building Micro-Frontends* (O'Reilly)
 
 The decisions framework is composed of four areas that must be resolved upfront because each one constrains the next:

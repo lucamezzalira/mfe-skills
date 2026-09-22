@@ -1,0 +1,35 @@
+[
+  {
+    "skills": ["understanding-mfe-architecture"],
+    "query": "We want to extract checkout from our monolith. How should we approach ownership and deployment?",
+    "files": ["fixtures/monolith-checkout.md"],
+    "expected_behavior": [
+      "Asks about or emphasises single-team end-to-end ownership before code",
+      "Warns against shared build/deploy coupling between teams",
+      "Routes to the appropriate reference (boundary-design or decisions-framework) rather than inventing a full Canvas",
+      "Does not generate a full Module Federation config until ownership is clear"
+    ]
+  },
+  {
+    "skills": ["understanding-mfe-architecture"],
+    "query": "Should catalog filters and product detail be separate micro-frontends on the same page?",
+    "files": ["fixtures/horizontal-split-question.md"],
+    "expected_behavior": [
+      "Discusses horizontal vs vertical split trade-offs",
+      "Flags risk of over-granular MFEs and coordination cost",
+      "Loads or cites boundary-design / decisions-framework as appropriate",
+      "Does not default to 'always more MFEs is better'"
+    ]
+  },
+  {
+    "skills": ["understanding-mfe-architecture"],
+    "query": "Marketing wants SSR for landing; checkout is client-only. Who owns edge routes?",
+    "files": ["fixtures/ssr-ownership.md"],
+    "expected_behavior": [
+      "Addresses SSR / edge ownership as an architectural decision",
+      "Points at decisions-framework or related reference guidance",
+      "Keeps shell vs MFE route ownership distinct",
+      "Does not invent payment or product domain rules"
+    ]
+  }
+]

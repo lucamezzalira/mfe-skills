@@ -27,10 +27,12 @@ const REF_NAMES = {
     'canvas-pointer.md': 'mfe-architecture-canvas-pointer',
   },
   'reviewing-mfe-boundaries': {
-    'rules-core.md': 'mfe-boundary-rules-core',
+    'rules-core-critical.md': 'mfe-boundary-rules-core-critical',
+    'rules-core-standard.md': 'mfe-boundary-rules-core-standard',
     'rules-toolchain.md': 'mfe-boundary-toolchain',
     'routing-ownership.md': 'mfe-boundary-routing',
     'remediation.md': 'mfe-boundary-remediation',
+    'code-patterns.md': 'mfe-boundary-code-patterns',
   },
 }
 

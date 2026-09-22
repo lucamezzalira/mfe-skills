@@ -5,6 +5,16 @@ alwaysApply: false
 
 # URL routing ownership — shell vs micro-frontend
 
+## Contents
+
+- Principle
+- Shell: dynamic first-level routes (main goal)
+- Micro-frontend: hardcoded internal routes (expected)
+- Shell platform events vs domain events
+- Vertical vs horizontal split
+- Violation signals
+- Adding or removing a micro-frontend
+
 **Version**: 1.1 | **Skill**: reviewing-mfe-boundaries | **Source**: *Building Micro-Frontends* (O'Reilly)
 
 ## Principle

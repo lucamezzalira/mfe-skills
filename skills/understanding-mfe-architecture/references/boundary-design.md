@@ -1,5 +1,15 @@
 # Boundary design
 
+## Contents
+
+- The canonical definition
+- The seven principles
+- Organisational readiness gate
+- Identifying boundaries with domain-driven design
+- Boundary testing heuristic
+- Additional boundary guardrails
+- The Micro-Frontend Canvas
+
 **Version**: 1.2 | **Skill**: understanding-mfe-architecture | **Source**: *Building Micro-Frontends* (O'Reilly) and the Micro-Frontend Canvas
 
 ---

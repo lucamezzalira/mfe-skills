@@ -69,13 +69,16 @@ Squash merge only (recommended): **Settings → General → Pull Requests → Al
 | Check | Severity |
 |-------|----------|
 | Each skill has `SKILL.md` with `name`, `description`, `license` | Error |
-| `name` is 1–64 chars, lowercase `a-z0-9` with single hyphens, and matches the folder name | Error |
+| `name` is 1-64 chars, lowercase `a-z0-9` with single hyphens, matches the folder, no `--`, no `anthropic`/`claude` substrings | Error |
 | `description` is non-empty and at most 1024 chars | Error |
+| SKILL.md body under 500 lines (warn at 400) | Error / Warning |
+| Reference files under 500 lines; over 100 lines must have `## Contents` in the first 20 lines | Error |
+| No backslash paths in code blocks or path-like inline code | Error |
 | No `references/canvas.md` (use `canvas-pointer.md`) | Error |
 | No `check-boundary.py` references | Error |
 | `references/...` and cross-skill `<skill>/references/...` links resolve (inline code or markdown links, in `SKILL.md` and reference files) | Error |
 | US spellings in skills (warn → prefer UK) | Warning |
-| Plugin manifest version matches `package.json` | Warning |
+| Plugin manifesto version matches `package.json` | Warning |
 
 `npm run test` (smoke) checks:
 
@@ -92,6 +95,49 @@ Squash merge only (recommended): **Settings → General → Pull Requests → Al
 - Max size per generated `.mdc` file  
 - Diff guard: PR fails if `skills/**` changed but `.cursor/rules/` not rebuilt  
 - Link checker for external URLs in README  
+
+## Structural contract for new skills
+
+Every new skill under `skills/` must satisfy the contract below. Each rule is
+enforced by `scripts/validate.js` (see Validation plan). Dig deeper in
+[Anthropic Skill authoring best practices](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/best-practices)
+and the [Agent Skills specification](https://agentskills.io/).
+
+- **Name** in gerund form matching the parent directory; no `--`; no
+  `anthropic` or `claude` substrings
+- **Description** in third person, 1-1024 characters, containing at least one
+  trigger phrase (`use when`, `activates on`, `loads when`, or equivalent) and
+  at least one explicit `does not activate for` / `Does not activate for`
+  clause
+- **Body** under 500 lines (warn at 400)
+- **Body includes**: overview paragraph; task-routing pointer paragraph when
+  multiple reference files exist; `## Examples`; and a scope-limit section
+  (`## When not to activate` or `## Troubleshooting`)
+- **References** under `references/`, one directory deep from `SKILL.md`
+- **Reference files** over 100 lines open with `## Contents` as the second
+  heading (within the first 20 lines of the file)
+- **Forward slashes** in every file path (no Windows backslashes)
+
+## Evaluations
+
+Each skill should keep scenarios in `skills/<name>/evals/evals.json` (at least
+three), with optional fixtures under `evals/fixtures/`. Shape:
+
+```json
+[
+  {
+    "skills": ["reviewing-mfe-boundaries"],
+    "query": "…",
+    "files": ["fixtures/example.tsx"],
+    "expected_behavior": ["…", "…"]
+  }
+]
+```
+
+When you add a new rule, edge case, or remediation path, add an evaluation
+scenario that would have failed before the change. Maintainers run evaluations
+manually against Haiku, Sonnet, and Opus before merging PRs that change skill
+content. There is no built-in runner yet; the scenarios are the durable asset.
 
 ## UK English
 

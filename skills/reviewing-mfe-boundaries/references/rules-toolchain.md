@@ -1,8 +1,20 @@
 # MFE boundary rules — toolchain patterns
 
+## Contents
+
+- URL routing — shell first segment, MFE below (Rule 7)
+- Rule 2 — Exposes a minimal API surface to its container
+- Rule 3 — Hides implementation details behind an API contract
+- Rule 5 — Deploys independently without coordination
+- Rule 7 — Is coarse-grained enough to prevent context leakage
+- Governance extension — feature flags scope
+- Governance extension — edge strategy
+- Governance extension — SSR ownership and composition
+- Governance extension — fitness functions in monorepos
+
 **Version**: 1.3 | **Skill**: reviewing-mfe-boundaries | **Source**: *Building Micro-Frontends* (O'Reilly)
 
-Toolchain-specific code patterns for each boundary rule. Load this file when the user is working with a specific framework or when a rule violation needs framework-specific guidance. For principle definitions and violation signals, see `rules-core.md`.
+Toolchain-specific code patterns for each boundary rule. Load this file when the user is working with a specific framework or when a rule violation needs framework-specific guidance. For principle definitions and violation signals, see `rules-core-critical.md` and `rules-core-standard.md`.
 
 ## URL routing — shell first segment, MFE below (Rule 7)
 
@@ -104,7 +116,6 @@ registerApplication({
 
 ---
 
-
 ## Rule 3 — Hides implementation details behind an API contract
 
 **Toolchain patterns — same rule, different surfaces:**
@@ -154,7 +165,6 @@ bus.on('auth:tokenRefreshed', ({ token }) => { /* use token */ })
 ```
 
 ---
-
 
 ## Rule 5 — Deploys independently without coordination
 
@@ -217,7 +227,6 @@ fetch('/api/remotes')
 ```
 
 ---
-
 
 ## Rule 7 — Is coarse-grained enough to prevent context leakage
 

@@ -1,0 +1,35 @@
+[
+  {
+    "skills": ["reviewing-mfe-boundaries"],
+    "query": "Review this shell integration for boundary violations.",
+    "files": ["fixtures/shell-with-cross-import.tsx"],
+    "expected_behavior": [
+      "Cites Rule 3 as the primary violation",
+      "Identifies the specific import as bypassing the API contract",
+      "Recommends a remediation from references/remediation.md rather than a generic 'refactor' suggestion",
+      "Does not add generic React advice unrelated to boundary rules"
+    ]
+  },
+  {
+    "skills": ["reviewing-mfe-boundaries"],
+    "query": "Is this shell event wiring OK?",
+    "files": ["fixtures/shell-with-domain-bus.ts"],
+    "expected_behavior": [
+      "Cites Rule 4 for shell listening to catalog:* domain events",
+      "Distinguishes shell:* platform events from peer domain events",
+      "Suggests remediation aligned with references/remediation.md",
+      "Does not recommend a shared Redux store across MFEs"
+    ]
+  },
+  {
+    "skills": ["reviewing-mfe-boundaries"],
+    "query": "Review this remote mount in the shell.",
+    "files": ["fixtures/remote-mount-no-fallback.tsx"],
+    "expected_behavior": [
+      "Cites Rule 6 for missing ErrorBoundary around the remote mount",
+      "States the fallback must live in the shell, not inside the micro-frontend",
+      "Notes props already use identifiers (Rule 2 satisfied) if relevant",
+      "Avoids rewriting the whole app architecture unless asked"
+    ]
+  }
+]

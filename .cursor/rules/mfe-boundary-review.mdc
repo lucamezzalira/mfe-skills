@@ -5,7 +5,7 @@ alwaysApply: false
 
 # MFE boundary health
 
-Reviews and generates micro-frontend code against the eight boundary rules from *Building Micro-Frontends* (O'Reilly). All rules are tool-agnostic. Full rule definitions, violation signals, and code-checkable patterns are in `references/rules-core.md` — load it when you need the detail for a specific rule.
+Reviews and generates micro-frontend code against the eight boundary rules from *Building Micro-Frontends* (O'Reilly). All rules are tool-agnostic. Full rule definitions, violation signals, and code-checkable patterns are in `references/rules-core-critical.md` (rules 3 and 4) and `references/rules-core-standard.md` (rules 1, 2, 5, 6, 7, 8). Load the file that covers the rule you need.
 
 **On every activation, apply this summary table directly — no file load needed:**
 
@@ -20,10 +20,11 @@ Reviews and generates micro-frontend code against the eight boundary rules from 
 | 7 — Coarse-grained | Nesting depth > 1 (MFE inside MFE); more than 3 MFEs per view | High |
 | 8 — Single-team ownership | One team in CODEOWNERS; no cross-team sign-off on internals | High |
 
-For full rule definitions and violation signals: load `references/rules-core.md`.
+For full rule definitions and violation signals: load `references/rules-core-critical.md` or `references/rules-core-standard.md`.
 For framework-specific patterns (MF v2, Angular/Native Federation, Single SPA): load `references/rules-toolchain.md`.
 For URL routing ownership (shell first segment, MFE deeper paths): load `references/routing-ownership.md`.
 For fix patterns and step-by-step remediation: load `references/remediation.md` when the user asks how to fix a violation or requests a migration plan.
+For framework-by-framework code generation patterns (React, Angular, Vue, Single SPA): load `references/code-patterns.md`.
 
 ---
 
@@ -49,131 +50,18 @@ Once all three are confirmed, apply the rules as design constraints from the fir
 
 ## Code generation defaults
 
-When generating any MFE code, apply these defaults without being asked. Examples are shown per toolchain — apply the pattern that matches the user's stack.
+Apply the rule defaults from the summary table above. For the full
+framework-by-framework patterns (React, Angular, Vue, Single SPA),
+load `references/code-patterns.md` when you need the specific syntax
+for the user's toolchain.
 
-**URL routing — shell first segment only; MFE owns depth below (Rule 7):**
+Two defaults worth keeping in the always-loaded body because they
+are toolchain-independent:
 
-- **Shell**: load **only** first-level paths from a runtime manifest (`routes.json` + `remotes.json`) so adding/removing an MFE does not require shell code changes or redeploy for MFE-internal pages
-- **MFE**: hardcoded internal routes are expected (`/product/:id` under `/catalog`); new sub-pages are MFE-only deploys
-- **Navigation implementation**: flexible (`<a>`, `<Link>`, `navigate()`, etc.) — enforce URL depth ownership, not a specific router API
-- **Cross-area navigation**: change the first URL segment; deeper segments stay inside the owning MFE
-
-```tsx
-// ✓ Shell — manifest-driven first segment (wildcard → remote)
-// routes.json: { "path": "/catalog/*", "scope": "catalog_mfe", "module": "./CatalogApp" }
-routes.map((r) => <Route key={r.scope} path={r.path} element={<RemoteMount ... />} />)
-
-// ✓ Catalog MFE — hardcoded routes under basename (no shell change when adding pages)
-<BrowserRouter basename="/catalog">
-  <Routes>
-    <Route path="/product/:productId" element={<ProductDetail />} />
-  </Routes>
-</BrowserRouter>
-
-// ✗ Shell — domain sub-route
-<Route path="/catalog/product/:productId" element={...} />
-```
-
-**Shell platform events — allowed; domain events in shell — not (Rules 4, 7):**
-
-- Shell **may** handle platform/chrome events: alerts, toasts, modals, global loading chrome
-- Shell **must not** subscribe to domain namespaces (`catalog:*`, `checkout:*`, `cart:*`)
-- MFEs emit `shell:alert`, `shell:modal:open`, etc.; horizontal peers may use domain events MFE-to-MFE, not via shell handlers
-
-```javascript
-// ✓ MFE → shell chrome
-platformBus.emit('shell:alert', { message: 'Saved', variant: 'success' })
-
-// ✗ Shell listens to business events
-platformBus.on('catalog:productSelected', handler)
-```
-
-Load `references/routing-ownership.md` for full patterns.
-
-**Shell mounting — always include a fallback in the shell, not inside the micro-frontend (Rule 6):**
-
-```jsx
-{/* React / Module Federation */}
-<ErrorBoundary fallback={<CheckoutFallback />}>
-  <CheckoutMicrofrontend userId={userId} cartId={cartId} />
-</ErrorBoundary>
-```
-
-```typescript
-// Angular / Native Federation — shell route with fallback on load failure
-{
-  path: 'checkout',
-  loadComponent: () =>
-    loadRemoteModule('checkout', './CheckoutComponent')
-      .then(m => m.CheckoutComponent)
-      .catch(() => CheckoutFallbackComponent)  // fallback defined in shell
-}
-```
-
-```javascript
-// Single SPA — catch mount errors at the shell level
-const parcel = mountRootParcel(checkoutConfig, { domElement })
-parcel.mountPromise.catch(() => renderCheckoutFallback())
-```
-
-**Props — pass identifiers, not domain objects (Rule 2):**
-
-```jsx
-{/* React — identifiers only */}
-<CheckoutMicrofrontend userId={userId} cartId={cartId} />
-{/* ✗ Never: user={fullUserObject} cart={fullCartObject} */}
-```
-
-```typescript
-// Angular — route param carries the identifier; remote reads ActivatedRoute itself
-// ✓ { path: 'checkout/:cartId', loadComponent: () => loadRemoteModule(...) }
-// ✗ resolve: { cart: CartResolver, user: UserResolver } — container owns context
-```
-
-```javascript
-// Single SPA — customProps with identifiers only
-registerApplication({
-  name: 'checkout',
-  app: () => import('checkout/main'),
-  activeWhen: '/checkout',
-  customProps: { userId, cartId }  // ✓ identifiers only
-})
-```
-
-**Same-page communication (horizontal split) — event emitter between peers, never shared state (Rule 4):**
-
-```javascript
-// MFE-to-MFE on the same page — domain events OK between peers, not in shell
-eventBus.emit('catalog:filterChanged', { category: 'audio' })
-
-// ✗ Never: import { checkoutStore } from '@org/checkout-mfe/store'
-```
-
-**Shell platform bus — chrome only (Rules 4, 7):**
-
-```javascript
-// ✓ MFE requests shell-owned UI
-platformBus.emit('shell:modal:open', { id: 'confirm', title: 'Continue?' })
-
-// ✗ Shell must not own domain reactions
-platformBus.on('checkout:completed', ({ orderId }) => { ... })
-```
-
-**Cross-area navigation and data — first segment switches MFE; depth stays in MFE (Rules 4, 7):**
-
-```javascript
-// ✓ Any style that changes the first segment — implementation is flexible
-navigate('/catalog')
-// <Link to="/catalog"> or <a href="/catalog">
-
-// ✓ Deeper path owned by catalog MFE — no shell redeploy when this route is added
-navigate(`/catalog/product/${productId}`)
-
-// ✓ Store a token; receiving MFE retrieves it independently
-sessionStorage.setItem('auth_token', token)
-
-// ✗ window.history.pushState({ user: fullUserObject }, '', '/catalog')
-```
+- Props are identifiers only (`userId`, `cartId`), never domain
+  objects
+- Every remote mount is wrapped by an error boundary in the shell,
+  not inside the micro-frontend
 
 ---
 
@@ -197,7 +85,7 @@ If any answer is no, the boundary needs to be revisited before implementation be
 
 Scan in this order — most impactful violations first:
 
-1. **Rule 3** — any import where the source path is another MFE's internal module. One cross-boundary import can invalidate independent deployment for the entire boundary. Load `references/rules-core.md` for full patterns.
+1. **Rule 3** — any import where the source path is another MFE's internal module. One cross-boundary import can invalidate independent deployment for the entire boundary. Load `references/rules-core-critical.md` for full Rule 3 patterns.
 2. **Rule 2** — count props at the mount site. Flag if more than 5, or if any prop is a full domain object.
 3. **Rule 4** — shared state imports, global store references, callbacks as the primary coordination mechanism.
 4. **Rule 6** — every remote mount point in the shell. If no fallback is present, flag it.
@@ -205,6 +93,24 @@ Scan in this order — most impactful violations first:
 6. **Rule 5** — if webpack/vite config or CI/CD is in scope, look for versioned remote URLs in the shell config, build-time MFE imports, or `needs:` coupling in pipelines.
 7. **Rules 1 and 8** — naming and ownership: does the name reflect a business capability? Is there a clear owning team?
 8. **Governance extensions** — feature flags inside MFEs (not shell orchestration), edge rationale (latency/routing/canary), SSR route ownership, and architecture fitness functions (for example `ts-arch` + `jest`) for monorepos.
+
+---
+
+## Validate mechanically when the project adopts governance
+
+If the consuming project has copied `governance-template/` into their
+repo, run the fitness functions after applying rule fixes:
+
+`npx jest --config governance-template/fitness/jest.config.cjs`
+
+The suite fails when any critical rule fails. For each reported
+violation, apply the remediation pattern from
+`references/remediation.md`, then re-run the suite. Continue until
+the suite passes before concluding the review.
+
+If the project has not adopted the template, offer to add it as a
+follow-up rather than running the fitness functions against a
+missing config.
 
 ---
 
